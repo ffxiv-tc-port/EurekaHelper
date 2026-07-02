@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<Authors>Snowy, KangasZ</Authors>
-		<Version>2.0.2.3</Version>
+		<Version>7.15.0.0-TCfix</Version>
 		<Description>A plugin to enchance your Eureka experience, updated for the most current patch</Description>
 		<PackageProjectUrl>https://github.com/KangasZ/EurekaHelper</PackageProjectUrl>
 	</PropertyGroup>
@@ -16,7 +16,7 @@
     </PropertyGroup>
 
 	<PropertyGroup>
-		<DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+		<DalamudLibPath>$(appdata)\FFXIVSimpleLauncher\Dalamud\Injector\</DalamudLibPath>
 		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 		<PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
