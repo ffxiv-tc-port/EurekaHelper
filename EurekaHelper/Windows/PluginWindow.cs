@@ -707,7 +707,17 @@ namespace EurekaHelper.Windows
 
                 if (respawnRequirements.Length == 0)
                 {
-                    Utils.RightAlignTextInColumn(Loc.Text("Ready"), GreenColorText);
+                    var readyWindowRemaining = fate.GetReadyWindowRemaining(Connection.GetTracker());
+                    if (readyWindowRemaining.HasValue)
+                    {
+                        var remainingText = readyWindowRemaining.Value.ToString(
+                            readyWindowRemaining.Value.Hours > 0 ? "hh'h 'mm'm 'ss's'" : "mm'm 'ss's'");
+                        Utils.RightAlignTextInColumn($"{Loc.Text("Ready")} ({remainingText})", GreenColorText);
+                    }
+                    else
+                    {
+                        Utils.RightAlignTextInColumn(Loc.Text("Ready"), GreenColorText);
+                    }
                 }
                 else
                 {

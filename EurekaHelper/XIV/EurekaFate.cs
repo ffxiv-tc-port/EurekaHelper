@@ -88,6 +88,29 @@ namespace EurekaHelper.XIV
             return respawnRequirements;
         }
 
+        // Null = ready with no expiry (no weather/night requirement at all). Otherwise, how much
+        // longer the current "ready to spawn" window lasts before the weather changes or day
+        // breaks and it's no longer spawnable. Only meaningful when GetRespawnRequirements()
+        // returns empty (i.e. already ready) - doesn't check IsPopped() itself.
+        public TimeSpan? GetReadyWindowRemaining(IEurekaTracker tracker)
+        {
+            TimeSpan? remaining = null;
+
+            if (SpawnByRequiredWeather != EurekaWeather.None && SpawnByRequiredWeather == tracker.GetCurrentWeatherInfo().Weather)
+                remaining = tracker.GetCurrentWeatherInfo().Timeleft;
+            else if (SpawnRequiredWeather != EurekaWeather.None && SpawnRequiredWeather == tracker.GetCurrentWeatherInfo().Weather)
+                remaining = tracker.GetCurrentWeatherInfo().Timeleft;
+
+            if (SpawnByRequiredNight && (EorzeaTime.Now.EorzeaDateTime.Hour < 6 || EorzeaTime.Now.EorzeaDateTime.Hour >= 19))
+            {
+                var nightRemaining = EorzeaTime.Now.TimeUntilDay();
+                if (remaining is null || nightRemaining < remaining)
+                    remaining = nightRemaining;
+            }
+
+            return remaining;
+        }
+
         public DateTime GetPoppedTime() => EorzeaTime.Zero.AddMilliseconds(KilledAt).ToLocalTime();
 
         public TimeSpan GetRespawnTimeleft() => TimeSpan.FromMilliseconds(KilledAt + 7200000 - DateTimeOffset.Now.ToUnixTimeMilliseconds());
