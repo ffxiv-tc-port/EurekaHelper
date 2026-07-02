@@ -366,9 +366,12 @@ namespace EurekaHelper
             int index = random.Next(EurekaHelper.Config.CustomMessages.Count);
             string randomMessage = EurekaHelper.Config.CustomMessages[index];
 
+            Loc.TryEurekaName(fate.BossName, out var bossName);
+            Loc.TryEurekaName(fate.BossShortName, out var bossShortName);
+
             return randomMessage
-                .Replace("%bossName%", fate.BossName)
-                .Replace("%bossShortName%", fate.BossShortName)
+                .Replace("%bossName%", bossName)
+                .Replace("%bossShortName%", bossShortName)
                 .Replace("%fateName%", fate.FateName)
                 .Replace("%flag%", "<flag>");
         }

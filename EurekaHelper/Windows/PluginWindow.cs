@@ -556,7 +556,8 @@ namespace EurekaHelper.Windows
 
                 // NM Boss Name
                 ImGui.TableNextColumn();
-                ImGui.Text(fate.BossName);
+                Loc.TryEurekaName(fate.BossName, out var bossNameText);
+                ImGui.Text(bossNameText);
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
@@ -586,7 +587,8 @@ namespace EurekaHelper.Windows
 
                 // Spawned By
                 ImGui.TableNextColumn();
-                ImGui.Text(fate.SpawnedBy);
+                Loc.TryEurekaName(fate.SpawnedBy, out var spawnedByText);
+                ImGui.Text(spawnedByText);
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
@@ -653,7 +655,8 @@ namespace EurekaHelper.Windows
                         unsafe
                         {
                             ImGui.Text(Loc.Text("- TIME AGO -"));
-                            ImGui.Text(Loc.Format("NM: {0}", fate.BossName));
+                            Loc.TryEurekaName(fate.BossName, out var popupBossName);
+                            ImGui.Text(Loc.Format("NM: {0}", popupBossName));
 
                             var width = ImGui.CalcTextSize("TIME").X;
                             ImGui.SetNextItemWidth(width);

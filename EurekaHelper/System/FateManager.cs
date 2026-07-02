@@ -61,8 +61,9 @@ namespace EurekaHelper.System
                     if (fate.Progress % 25 == 0)
                     {
                         eurekaFate.FateProgress = fate.Progress;
+                        Loc.TryEurekaName(eurekaFate.BossName, out var bossName);
                         var sb = new SeStringBuilder()
-                            .AddText($"{eurekaFate.BossName}: ")
+                            .AddText($"{bossName}: ")
                             .Append(Utils.MapLink(eurekaFate.TerritoryId, eurekaFate.MapId, eurekaFate.FatePosition))
                             .AddText($" {Loc.Text("is at")} ")
                             .AddUiForeground(58)
@@ -88,8 +89,9 @@ namespace EurekaHelper.System
 
         public static void DisplayFatePop(EurekaFate fate)
         {
+            Loc.TryEurekaName(fate.BossName, out var bossName);
             var sb = new SeStringBuilder()
-                .AddText($"{fate.BossName}: ")
+                .AddText($"{bossName}: ")
                 .Append(Utils.MapLink(fate.TerritoryId, fate.MapId, fate.FatePosition));
 
             if (!fate.IsBunnyFate)
