@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net.WebSockets;
 
 namespace EurekaTrackerServer;
@@ -6,7 +7,10 @@ namespace EurekaTrackerServer;
 public sealed class Connection
 {
     public required WebSocket Socket { get; init; }
-    public bool CanModify { get; set; }
+
+    // No password gate - anyone with the share link can flip this on. It's a courtesy signal
+    // ("I'm editing right now") broadcast to others in the room, not an access control.
+    public bool IsEditing { get; set; }
 }
 
 public sealed class Room
@@ -20,10 +24,10 @@ public sealed class RoomManager
 {
     private readonly ConcurrentDictionary<string, Room> _rooms = new();
 
-    public Connection Join(string instanceId, WebSocket socket, bool canModify)
+    public Connection Join(string instanceId, WebSocket socket)
     {
         var room = _rooms.GetOrAdd(instanceId, _ => new Room());
-        var connection = new Connection { Socket = socket, CanModify = canModify };
+        var connection = new Connection { Socket = socket };
         room.Connections[connection] = 0;
         return connection;
     }
@@ -40,6 +44,9 @@ public sealed class RoomManager
 
     public int ViewerCount(string instanceId) =>
         _rooms.TryGetValue(instanceId, out var room) ? room.Connections.Count : 0;
+
+    public int EditorCount(string instanceId) =>
+        _rooms.TryGetValue(instanceId, out var room) ? room.Connections.Keys.Count(c => c.IsEditing) : 0;
 
     public async Task BroadcastAsync(string instanceId, string json, Connection? except = null)
     {

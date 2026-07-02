@@ -20,13 +20,18 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 
 var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-app.MapGet("/", () => Results.Ok("EurekaTrackerServer is running."));
+// Static NM roster per zone (id/name/level), for the web frontend to render without
+// duplicating the plugin's full respawn-condition logic.
+app.MapGet("/api/zones", () => Results.Ok(ZoneData.Zones));
 
-// Create (or copy) a tracker instance.
+// Create (or copy) a tracker instance. No password - anyone with the share code can join
+// and edit; see EditorsUpdate for the "who's currently editing" courtesy signal instead.
 app.MapPost("/api/instances", (CreateInstanceRequest request, Db db) =>
 {
     if (!string.IsNullOrWhiteSpace(request.CopyFrom))
@@ -35,13 +40,13 @@ app.MapPost("/api/instances", (CreateInstanceRequest request, Db db) =>
         if (source is null)
             return Results.NotFound(new { error = "source instance not found" });
 
-        var copy = db.CreateInstance(GenerateUniqueId(db), source.ZoneId, GeneratePassword());
+        var copy = db.CreateInstance(GenerateUniqueId(db), source.ZoneId);
         db.CopyKillTimes(source.Id, copy.Id);
-        return Results.Ok(new { id = copy.Id, password = copy.Password });
+        return Results.Ok(new { id = copy.Id });
     }
 
-    var created = db.CreateInstance(GenerateUniqueId(db), request.ZoneId, GeneratePassword());
-    return Results.Ok(new { id = created.Id, password = created.Password });
+    var created = db.CreateInstance(GenerateUniqueId(db), request.ZoneId);
+    return Results.Ok(new { id = created.Id });
 });
 
 // List public tracker share-codes for a given zone + datacenter (used by the plugin's /etrackers command).
@@ -66,11 +71,8 @@ app.Map("/ws/{instanceId}", async (HttpContext context, string instanceId, Db db
         return;
     }
 
-    var providedPassword = context.Request.Query["password"].ToString();
-    var canModify = !string.IsNullOrEmpty(providedPassword) && providedPassword == instance.Password;
-
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    var connection = rooms.Join(instanceId, socket, canModify);
+    var connection = rooms.Join(instanceId, socket);
 
     try
     {
@@ -80,8 +82,8 @@ app.Map("/ws/{instanceId}", async (HttpContext context, string instanceId, Db db
             KillTimes = db.GetKillTimes(instanceId),
             Public = instance.Public,
             DataCenterId = instance.DataCenterId,
-            CanModify = canModify,
             Viewers = rooms.ViewerCount(instanceId),
+            Editors = rooms.EditorCount(instanceId),
         };
         await SendAsync(socket, initial, jsonOptions);
         await rooms.BroadcastAsync(instanceId, Serialize(new ViewersUpdate { Count = rooms.ViewerCount(instanceId) }, jsonOptions));
@@ -127,8 +129,14 @@ app.Map("/ws/{instanceId}", async (HttpContext context, string instanceId, Db db
             await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
 
         await rooms.BroadcastAsync(instanceId, Serialize(new ViewersUpdate { Count = rooms.ViewerCount(instanceId) }, jsonOptions));
+        await rooms.BroadcastAsync(instanceId, Serialize(new EditorsUpdate { Count = rooms.EditorCount(instanceId) }, jsonOptions));
     }
 });
+
+// Pretty tracker links (/ABC123) aren't real files - let the SPA's client-side router
+// (wwwroot/app.js, reading location.pathname) handle them. Doesn't shadow /api or /ws since
+// those routes are already matched above.
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
@@ -136,20 +144,19 @@ static async Task HandleMessage(string instanceId, Connection connection, Client
 {
     switch (message.Type)
     {
-        case "set_password":
+        case "set_editing":
             {
-                var instance = db.GetInstance(instanceId);
-                var success = instance is not null && message.Password == instance.Password;
-                if (success)
-                    connection.CanModify = true;
+                if (message.Editing is null)
+                    break;
 
-                await SendAsync(connection.Socket, new PasswordSetResult { Success = success, Password = success ? message.Password : null }, jsonOptions);
+                connection.IsEditing = message.Editing.Value;
+                await rooms.BroadcastAsync(instanceId, Serialize(new EditorsUpdate { Count = rooms.EditorCount(instanceId) }, jsonOptions));
                 break;
             }
 
         case "set_kill_time":
             {
-                if (!connection.CanModify || message.MonsterId is null || message.Time is null)
+                if (message.MonsterId is null || message.Time is null)
                     break;
 
                 db.SetKillTime(instanceId, message.MonsterId.Value, message.Time.Value);
@@ -159,7 +166,7 @@ static async Task HandleMessage(string instanceId, Connection connection, Client
 
         case "reset_kill":
             {
-                if (!connection.CanModify || message.MonsterId is null)
+                if (message.MonsterId is null)
                     break;
 
                 db.ResetKill(instanceId, message.MonsterId.Value);
@@ -169,9 +176,6 @@ static async Task HandleMessage(string instanceId, Connection connection, Client
 
         case "reset_all":
             {
-                if (!connection.CanModify)
-                    break;
-
                 db.ResetAll(instanceId);
                 await rooms.BroadcastAsync(instanceId, Serialize(new KillTimesUpdate { KillTimes = db.GetKillTimes(instanceId) }, jsonOptions));
                 break;
@@ -179,9 +183,6 @@ static async Task HandleMessage(string instanceId, Connection connection, Client
 
         case "set_visibility":
             {
-                if (!connection.CanModify)
-                    break;
-
                 var isPublic = message.DataCenterId is not null;
                 db.SetVisibility(instanceId, isPublic, message.DataCenterId);
                 await rooms.BroadcastAsync(instanceId, Serialize(new VisibilityUpdate { Public = isPublic, DataCenterId = message.DataCenterId }, jsonOptions));
@@ -224,13 +225,6 @@ static string GenerateId()
         chars[i] = alphabet[randomBytes[i] % alphabet.Length];
 
     return new string(chars);
-}
-
-static string GeneratePassword()
-{
-    Span<byte> randomBytes = stackalloc byte[9];
-    RandomNumberGenerator.Fill(randomBytes);
-    return Convert.ToBase64String(randomBytes).Replace('+', '-').Replace('/', '_');
 }
 
 sealed record CreateInstanceRequest(int ZoneId, string? CopyFrom);

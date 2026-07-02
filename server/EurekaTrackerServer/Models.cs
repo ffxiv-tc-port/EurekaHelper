@@ -4,7 +4,6 @@ public sealed class Instance
 {
     public required string Id { get; init; }
     public required int ZoneId { get; init; }
-    public required string Password { get; init; }
     public bool Public { get; set; }
     public int? DataCenterId { get; set; }
 }
@@ -15,7 +14,7 @@ public sealed class ClientMessage
     public string Type { get; set; } = string.Empty;
     public int? MonsterId { get; set; }
     public long? Time { get; set; }
-    public string? Password { get; set; }
+    public bool? Editing { get; set; }
     public int? DataCenterId { get; set; }
 }
 
@@ -27,8 +26,8 @@ public sealed class InitialPayload
     public required Dictionary<int, long> KillTimes { get; init; }
     public required bool Public { get; init; }
     public required int? DataCenterId { get; init; }
-    public required bool CanModify { get; init; }
     public required int Viewers { get; init; }
+    public required int Editors { get; init; }
 }
 
 public sealed class KillTimesUpdate
@@ -50,11 +49,10 @@ public sealed class ViewersUpdate
     public required int Count { get; init; }
 }
 
-public sealed class PasswordSetResult
+public sealed class EditorsUpdate
 {
-    public string Type => "password_set";
-    public required bool Success { get; init; }
-    public string? Password { get; init; }
+    public string Type => "editors";
+    public required int Count { get; init; }
 }
 
 public sealed class ErrorMessage

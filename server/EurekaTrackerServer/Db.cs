@@ -29,7 +29,6 @@ public sealed class Db
             CREATE TABLE IF NOT EXISTS instances (
                 id TEXT PRIMARY KEY,
                 zone_id INTEGER NOT NULL,
-                password TEXT NOT NULL,
                 public INTEGER NOT NULL DEFAULT 0,
                 data_center_id INTEGER NULL,
                 created_at INTEGER NOT NULL
@@ -46,25 +45,24 @@ public sealed class Db
         cmd.ExecuteNonQuery();
     }
 
-    public Instance CreateInstance(string id, int zoneId, string password)
+    public Instance CreateInstance(string id, int zoneId)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO instances (id, zone_id, password, public, data_center_id, created_at) VALUES ($id, $zoneId, $password, 0, NULL, $createdAt)";
+        cmd.CommandText = "INSERT INTO instances (id, zone_id, public, data_center_id, created_at) VALUES ($id, $zoneId, 0, NULL, $createdAt)";
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$zoneId", zoneId);
-        cmd.Parameters.AddWithValue("$password", password);
         cmd.Parameters.AddWithValue("$createdAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         cmd.ExecuteNonQuery();
 
-        return new Instance { Id = id, ZoneId = zoneId, Password = password };
+        return new Instance { Id = id, ZoneId = zoneId };
     }
 
     public Instance? GetInstance(string id)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT zone_id, password, public, data_center_id FROM instances WHERE id = $id";
+        cmd.CommandText = "SELECT zone_id, public, data_center_id FROM instances WHERE id = $id";
         cmd.Parameters.AddWithValue("$id", id);
         using var reader = cmd.ExecuteReader();
         if (!reader.Read())
@@ -74,9 +72,8 @@ public sealed class Db
         {
             Id = id,
             ZoneId = reader.GetInt32(0),
-            Password = reader.GetString(1),
-            Public = reader.GetInt32(2) != 0,
-            DataCenterId = reader.IsDBNull(3) ? null : reader.GetInt32(3),
+            Public = reader.GetInt32(1) != 0,
+            DataCenterId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
         };
     }
 

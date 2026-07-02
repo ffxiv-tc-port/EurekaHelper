@@ -15,12 +15,13 @@ namespace EurekaHelper.System
     // Talks to a self-hosted EurekaTrackerServer instance (see /server in this repo) instead of
     // ffxiv-eureka.com's Phoenix/Elixir backend. Protocol is a flat JSON object per WebSocket
     // message (no Phoenix Channels envelope, no manual heartbeat - ClientWebSocket already
-    // handles WS ping/pong at the OS level).
+    // handles WS ping/pong at the OS level). No password: anyone with the share code can join,
+    // and "editing" is just a local toggle each client broadcasts as a courtesy signal.
     public class EurekaConnectionManager : IDisposable
     {
-        private const string TrackerBaseUrl = "https://tracker.example.com"; // TODO: your EurekaTrackerServer domain
+        private const string TrackerBaseUrl = "https://ffxiv-eureka.lother.dev";
         private const string TrackerAPIUrl = TrackerBaseUrl + "/api/instances";
-        private const string TrackerWebSocketBaseUrl = "wss://tracker.example.com/ws"; // TODO: your EurekaTrackerServer domain
+        private const string TrackerWebSocketBaseUrl = "wss://ffxiv-eureka.lother.dev/ws";
 
         private static HttpClient HttpClient = new();
         private ClientWebSocket ClientWebSocket;
@@ -29,10 +30,10 @@ namespace EurekaHelper.System
         private bool Connected = false;
         private bool Invalid = false;
         private bool Public = false;
-        private bool CanModifyFlag = false;
+        private bool IsEditingFlag = false;
         private string TrackerId;
-        private string TrackerPassword;
         private int Viewers;
+        private int Editors;
         private IEurekaTracker Tracker;
 
         public EurekaConnectionManager()
@@ -41,21 +42,16 @@ namespace EurekaHelper.System
             CancellationTokenSource = new();
 
             TrackerId = String.Empty;
-            TrackerPassword = String.Empty;
             Viewers = 0;
         }
 
-        public static async Task<EurekaConnectionManager> JoinTracker(string trackerId, string password = null)
+        public static async Task<EurekaConnectionManager> JoinTracker(string trackerId)
         {
-            var connection = new EurekaConnectionManager
-            {
-                TrackerId = trackerId,
-                TrackerPassword = password ?? String.Empty,
-            };
+            var connection = new EurekaConnectionManager { TrackerId = trackerId };
 
             try
             {
-                var url = $"{TrackerWebSocketBaseUrl}/{trackerId}" + (String.IsNullOrWhiteSpace(password) ? "" : $"?password={Uri.EscapeDataString(password)}");
+                var url = $"{TrackerWebSocketBaseUrl}/{trackerId}";
                 await connection.ClientWebSocket.ConnectAsync(new Uri(url), connection.CancellationTokenSource.Token);
                 _ = connection.Receive();
                 DalamudApi.Log.Information("Successfully connected to tracker websocket");
@@ -114,13 +110,14 @@ namespace EurekaHelper.System
                             Tracker = Utils.GetEurekaTracker((ushort)zoneId);
 
                             Public = (bool)message["public"];
-                            CanModifyFlag = (bool)message["canModify"];
                             Viewers = (int)message["viewers"];
+                            Editors = (int)message["editors"];
 
                             ApplyKillTimes((JObject)message["killTimes"]);
 
                             Invalid = false;
                             Connected = true;
+
                             break;
                         }
 
@@ -136,17 +133,8 @@ namespace EurekaHelper.System
                         Viewers = (int)message["count"];
                         break;
 
-                    case "password_set":
-                        if ((bool)message["success"])
-                        {
-                            TrackerPassword = (string)message["password"];
-                            CanModifyFlag = true;
-                            DalamudApi.Log.Information("Successfully set password for tracker");
-                        }
-                        else
-                        {
-                            DalamudApi.Log.Information("Failed to set password for tracker");
-                        }
+                    case "editors":
+                        Editors = (int)message["count"];
                         break;
 
                     case "error":
@@ -181,9 +169,13 @@ namespace EurekaHelper.System
         public async Task Send(JObject payload) =>
             await ClientWebSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(payload.ToString())), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
 
-        public async Task SetPassword(string password)
+        // No password to check - this just toggles the local "I'm editing" courtesy flag and
+        // lets everyone else in the room see it (see EditorsUpdate on the server).
+        public async Task SetEditing(bool editing)
         {
-            await Send(JObject.Parse($@"{{ ""type"": ""set_password"", ""password"": {JToken.FromObject(password)} }}"));
+            IsEditingFlag = editing;
+            if (Connected)
+                await Send(JObject.Parse($@"{{ ""type"": ""set_editing"", ""editing"": {(editing ? "true" : "false")} }}"));
         }
 
         public async Task SetTrackerVisiblity(int dataCenterId = -1)
@@ -225,11 +217,10 @@ namespace EurekaHelper.System
 
             Public = false;
             TrackerId = String.Empty;
-            TrackerPassword = String.Empty;
             Tracker = null;
         }
 
-        public static async Task<(string trackerId, string password)> CreateTracker(int zoneId)
+        public static async Task<string> CreateTracker(int zoneId)
         {
             string jsonContent = JObject.Parse($@"{{ ""zoneId"": {zoneId} }}").ToString();
 
@@ -241,16 +232,13 @@ namespace EurekaHelper.System
             {
                 string response = await httpResponseMessage.Content.ReadAsStringAsync();
                 var json = JObject.Parse(response);
-                string trackerId = (string)json["id"];
-                string password = (string)json["password"];
-
-                return (trackerId, password);
+                return (string)json["id"];
             }
 
-            return (String.Empty, String.Empty);
+            return String.Empty;
         }
 
-        public static async Task<(string trackerId, string password)> ExportTracker(string oldTrackerId)
+        public static async Task<string> ExportTracker(string oldTrackerId)
         {
             string jsonContent = JObject.Parse($@"{{ ""zoneId"": 0, ""copyFrom"": {JToken.FromObject(oldTrackerId)} }}").ToString();
 
@@ -262,13 +250,10 @@ namespace EurekaHelper.System
             {
                 var response = await httpResponseMessage.Content.ReadAsStringAsync();
                 var json = JObject.Parse(response);
-                string trackerId = (string)json["id"];
-                string password = (string)json["password"];
-
-                return (trackerId, password);
+                return (string)json["id"];
             }
 
-            return (String.Empty, String.Empty);
+            return String.Empty;
         }
 
         public static async Task<List<string>> GetPublicTrackers(int zoneId, int dataCenterId)
@@ -286,13 +271,13 @@ namespace EurekaHelper.System
 
         public int GetViewers() => this.Viewers;
 
-        public string GetTrackerId() => this.TrackerId;
+        public int GetEditors() => this.Editors;
 
-        public string GetTrackerPassword() => this.TrackerPassword;
+        public string GetTrackerId() => this.TrackerId;
 
         public bool IsInvalid() => this.Invalid;
 
-        public bool CanModify() => this.CanModifyFlag;
+        public bool CanModify() => this.IsEditingFlag;
 
         public bool IsPublic() => this.Public;
 
