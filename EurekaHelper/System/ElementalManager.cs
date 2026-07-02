@@ -69,9 +69,9 @@ namespace EurekaHelper.System
                     var knownLocations = GetKnownLocations(DalamudApi.ClientState.TerritoryType);
                     if (!knownLocations.Any(x => Utils.IsWithinMinimumDistance(x, eurekaElemental.RawPosition, 15.0f)))
                     {
-                        EurekaHelper.PrintMessage("Elemental found that is not in the plugin database.");
-                        EurekaHelper.PrintMessage("Please send the following information to the developer on GitHub or Discord DM. You can find the contact information in the \"About\" tab.");
-                        EurekaHelper.PrintMessage("You can also opt-out of crowdsourcing for Elemental positions in the \"Elementals\" tab.");
+                        EurekaHelper.PrintMessage(Loc.Text("Elemental found that is not in the plugin database."));
+                        EurekaHelper.PrintMessage(Loc.Text("Please send the following information to the developer on GitHub or Discord DM. You can find the contact information in the \"About\" tab."));
+                        EurekaHelper.PrintMessage(Loc.Text("You can also opt-out of crowdsourcing for Elemental positions in the \"Elementals\" tab."));
                         EurekaHelper.PrintMessage($"Send -> T: {DalamudApi.ClientState.TerritoryType} X: {eurekaElemental.RawPosition.X} Y: {eurekaElemental.RawPosition.Y} Z: {eurekaElemental.RawPosition.Z}");
                     }
                 }
@@ -108,15 +108,15 @@ namespace EurekaHelper.System
 
                         var text = EurekaHelper.Config.ElementalPayloadOptions switch
                         {
-                            PayloadOptions.ShoutToChat => "shout",
-                            PayloadOptions.CopyToClipboard => "copy",
-                            _ => "shout"
+                            PayloadOptions.ShoutToChat => Loc.Text("shout"),
+                            PayloadOptions.CopyToClipboard => Loc.Text("copy"),
+                            _ => Loc.Text("shout")
                         };
 
                         sb.AddText(" ");
                         sb.AddUiForeground(32);
                         sb.Add(payload);
-                        sb.AddText($"[Click to {text}]");
+                        sb.AddText(Loc.Format("[Click to {0}]", text));
                         sb.Add(RawPayload.LinkTerminator);
                         sb.AddUiForegroundOff();
                     }

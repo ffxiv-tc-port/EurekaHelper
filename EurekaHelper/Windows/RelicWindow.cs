@@ -18,7 +18,7 @@ namespace EurekaHelper.Windows
     {
         private readonly EurekaHelper Plugin = null!;
 
-        public RelicWindow(EurekaHelper plugin) : base("Eureka Helper - Relic")
+        public RelicWindow(EurekaHelper plugin) : base(Loc.Text("Eureka Helper - Relic"))
         {
             Plugin = plugin;
             SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(415f, 500f), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
@@ -30,25 +30,25 @@ namespace EurekaHelper.Windows
         {
             if (ImGui.BeginTabBar("ERelicTab"))
             {
-                if (ImGui.BeginTabItem("Anemos"))
+                if (ImGui.BeginTabItem(Loc.Text("Anemos")))
                 {
                     DrawRelicTab(AnemosRelic.AnemosRelicStages);
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Pagos"))
+                if (ImGui.BeginTabItem(Loc.Text("Pagos")))
                 {
                     DrawRelicTab(PagosRelic.AnemosRelicStages);
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Pyros"))
+                if (ImGui.BeginTabItem(Loc.Text("Pyros")))
                 {
                     DrawRelicTab(PyrosRelic.PyrosRelicStages);
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Hydatos"))
+                if (ImGui.BeginTabItem(Loc.Text("Hydatos")))
                 {
                     DrawRelicTab(HydatosRelic.HydatosRelicStages);
                     ImGui.EndTabItem();
@@ -64,17 +64,17 @@ namespace EurekaHelper.Windows
             {
                 foreach (var stage in stages)
                 {
-                    if (ImGui.BeginTabItem(stage.Key))
+                    if (ImGui.BeginTabItem(Loc.RelicStage(stage.Key)))
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudYellow, "Requirements:");
+                        ImGui.TextColored(ImGuiColors.DalamudYellow, Loc.Text("Requirements:"));
                         ImGui.SameLine();
                         ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
                         ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
-                        ImGuiComponents.HelpMarker("These are the requirements you need to complete/gather for each relic stage\n\n" +
+                        ImGuiComponents.HelpMarker(Loc.Text("These are the requirements you need to complete/gather for each relic stage\n\n" +
                             "The first number shows the amount you have while the second number shows the amount you need\n" +
                             "However, for \"Elemental +1\" and \"Elemental +2\" armor relics, the numbers varies from 30-50 and 21-35 respectively\n" +
                             "To keep it simple, requirements will only show the maximum number of items needed\n\n" +
-                            "If you keep the items in other inventories (ex. Saddlebags, Retainers), you need to open it at least once to update the count.");
+                            "If you keep the items in other inventories (ex. Saddlebags, Retainers), you need to open it at least once to update the count."));
                         ImGui.PopStyleVar();
                         ImGui.PopStyleColor();
 
@@ -114,7 +114,7 @@ namespace EurekaHelper.Windows
                                                                         || x.InventoryType == InventoryType.Inventory3 
                                                                         || x.InventoryType == InventoryType.Inventory4)
                                                                         .Sum(x => x.Count);
-                                        ImGui.Text("Inventories:"); ImGui.SameLine(0.0f, spacing);
+                                        ImGui.Text(Loc.Text("Inventories:")); ImGui.SameLine(0.0f, spacing);
                                         ImGui.TextColored(ImGuiColors.ParsedPink, $"{characterInvCount}");
 
                                         var saddleInvCount = inventories.Where(x => x.InventoryType == InventoryType.SaddleBag1
@@ -122,7 +122,7 @@ namespace EurekaHelper.Windows
                                                                         || x.InventoryType == InventoryType.PremiumSaddleBag1
                                                                         || x.InventoryType == InventoryType.PremiumSaddleBag2)
                                                                         .Sum(x => x.Count);
-                                        ImGui.Text("Saddlebags:"); ImGui.SameLine(0.0f, spacing);
+                                        ImGui.Text(Loc.Text("Saddlebags:")); ImGui.SameLine(0.0f, spacing);
                                         ImGui.TextColored(ImGuiColors.ParsedPink, $"{saddleInvCount}");
 
                                         var retainerInvCount = inventories.Where(x => x.InventoryType == InventoryType.RetainerPage1
@@ -133,12 +133,12 @@ namespace EurekaHelper.Windows
                                                                         || x.InventoryType == InventoryType.RetainerPage6
                                                                         || x.InventoryType == InventoryType.RetainerPage7)
                                                                         .Sum(x => x.Count);
-                                        ImGui.Text("Retainers:"); ImGui.SameLine(0.0f, spacing);
+                                        ImGui.Text(Loc.Text("Retainers:")); ImGui.SameLine(0.0f, spacing);
                                         ImGui.TextColored(ImGuiColors.ParsedPink, $"{retainerInvCount}");
                                     }
                                     else
                                     {
-                                        ImGui.TextColored(ImGuiColors.DalamudRed, "Failed to get value for some reason, please contact author.");
+                                        ImGui.TextColored(ImGuiColors.DalamudRed, Loc.Text("Failed to get value for some reason, please contact author."));
                                     }
 
                                     ImGui.EndTooltip();
@@ -164,9 +164,9 @@ namespace EurekaHelper.Windows
                         if (ImGui.BeginTable("ItemsDisplayWindow", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV | ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.Sortable | ImGuiTableFlags.SortTristate))
                         {
                             ImGui.TableSetupScrollFreeze(0, 1);
-                            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.NoSort);
-                            ImGui.TableSetupColumn("Job Category", ImGuiTableColumnFlags.WidthFixed);
-                            ImGui.TableSetupColumn("Done", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed);
+                            ImGui.TableSetupColumn(Loc.Text("Item"), ImGuiTableColumnFlags.NoSort);
+                            ImGui.TableSetupColumn(Loc.Text("Job Category"), ImGuiTableColumnFlags.WidthFixed);
+                            ImGui.TableSetupColumn(Loc.Text("Done"), ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed);
                             ImGui.TableHeadersRow();
 
                             var currentStageRelics = stage.Value.RelicItems;

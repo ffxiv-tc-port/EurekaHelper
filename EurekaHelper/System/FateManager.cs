@@ -64,7 +64,7 @@ namespace EurekaHelper.System
                         var sb = new SeStringBuilder()
                             .AddText($"{eurekaFate.BossName}: ")
                             .Append(Utils.MapLink(eurekaFate.TerritoryId, eurekaFate.MapId, eurekaFate.FatePosition))
-                            .AddText(" is at ")
+                            .AddText($" {Loc.Text("is at")} ")
                             .AddUiForeground(58)
                             .AddText($"{eurekaFate.FateProgress}%")
                             .AddUiForegroundOff();
@@ -124,15 +124,15 @@ namespace EurekaHelper.System
 
                         var text = EurekaHelper.Config.PayloadOptions switch
                         {
-                            PayloadOptions.ShoutToChat => "shout",
-                            PayloadOptions.CopyToClipboard => "copy",
-                            _ => "shout"
+                            PayloadOptions.ShoutToChat => Loc.Text("shout"),
+                            PayloadOptions.CopyToClipboard => Loc.Text("copy"),
+                            _ => Loc.Text("shout")
                         };
 
                         sb.AddText(" ");
                         sb.AddUiForeground(32);
                         sb.Add(payload);
-                        sb.AddText($"[Click to {text}]");
+                        sb.AddText(Loc.Format("[Click to {0}]", text));
                         sb.Add(RawPayload.LinkTerminator);
                         sb.AddUiForegroundOff();
                     }

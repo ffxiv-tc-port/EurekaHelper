@@ -55,13 +55,13 @@ namespace EurekaHelper.System
                 if (zoneName != null)
                 {
                     if (EurekaHelper.Config.DisplayServerId)
-                        EurekaHelper.PrintMessage($"{zoneName} Server ID: {serverId}");
+                        EurekaHelper.PrintMessage(Loc.Format("{0} Server ID: {1}", zoneName, serverId));
 
                     if (EurekaHelper.Config.DisplayServerIdInServerInfo)
                     {
                         if (_dtrBarEntry != null)
                         {
-                            _dtrBarEntry.Text = $"Server ID: {serverId}";
+                            _dtrBarEntry.Text = Loc.Format("Server ID: {0}", serverId);
                             _dtrBarEntry.Shown = true;
                         }
                     }
@@ -77,7 +77,7 @@ namespace EurekaHelper.System
             }
             catch (Exception ex)
             {
-                DalamudApi.Log.Error($"Something went wrong. Please contact the author.\n{ex.Message}");
+                DalamudApi.Log.Error(Loc.Format("Something went wrong. Please contact the author.\n{0}", ex.Message));
             }
 
             return InitZoneHook.Original(a1, a2, a3);
