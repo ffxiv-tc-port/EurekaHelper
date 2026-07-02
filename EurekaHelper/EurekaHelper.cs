@@ -3,8 +3,10 @@ using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
+using Newtonsoft.Json.Linq;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using EurekaHelper.System;
 using EurekaHelper.Windows;
 using EurekaHelper.XIV;
@@ -158,31 +160,37 @@ namespace EurekaHelper;
         [HelpMessage("Attempts to get a tracker for the current instance in the same datacenter.")]
         private async void ETrackers(string command, string argument)
         {
+            var connectionManager = await EurekaConnectionManager.Connect();
             if (CurrentDatacenterId == 0)
             {
-                PrintMessage(Loc.Text("This datacenter is not supported currently. Please submit an issue if you think this is incorrect."));
+                PrintMessage("This datacenter is not supported currently. Please submit an issue if you think this is incorrect.");
+                await connectionManager.Close();
                 return;
             }
 
-            var zoneIndex = Utils.GetIndexOfZone(DalamudApi.ClientState.TerritoryType);
-            var trackerIds = await EurekaConnectionManager.GetPublicTrackers(zoneIndex, CurrentDatacenterId);
+            await connectionManager.Send(JArray.Parse(@$"[ ""1"", ""1"", ""datacenter:{CurrentDatacenterId}"", ""phx_join"", {{}} ]").ToString());
+            Thread.Sleep(500);
 
-            if (trackerIds.Count == 0)
+            var trackerList = connectionManager.GetCurrentTrackers();
+            await connectionManager.Close();
+
+            var filteredList = trackerList.Where(x => (int)x["relationships"]["zone"]["data"]["id"] == Utils.GetIndexOfZone(DalamudApi.ClientState.TerritoryType));
+            if (!filteredList.Any())
             {
-                PrintMessage(Loc.Text("Unable to find any public trackers."));
+                PrintMessage("Unable to find any public trackers.");
                 return;
             }
 
             var sb = new SeStringBuilder()
-                .AddText(Loc.Text("Found"))
+                .AddText("Found")
                 .AddUiForeground(58)
-                .AddText($" {trackerIds.Count} ")
+                .AddText($" {filteredList.Count()} ")
                 .AddUiForegroundOff()
-                .AddText(Loc.Text("public trackers:"));
+                .AddText("public trackers:");
             PrintMessage(sb.BuiltString);
 
-            foreach (var trackerId in trackerIds)
-                PrintMessage(Utils.CombineUrl(Constants.EurekaTrackerLink, trackerId));
+            foreach (var tracker in filteredList)
+                PrintMessage(Utils.CombineUrl(Constants.EurekaTrackerLink, tracker["id"].ToString()));
         }
 
         [Command("/erelic")]

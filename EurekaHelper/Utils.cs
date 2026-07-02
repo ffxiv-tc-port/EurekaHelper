@@ -23,7 +23,7 @@ namespace EurekaHelper
 {
     internal static class Constants
     {
-        public static readonly string EurekaTrackerLink = "https://ffxiv-eureka.lother.dev/";
+        public static readonly string EurekaTrackerLink = "https://ffxiv-eureka.com/";
 
         // 732 - Anemos
         // 763 - Pagos

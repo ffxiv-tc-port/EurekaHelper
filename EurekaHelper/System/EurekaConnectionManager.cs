@@ -1,4 +1,4 @@
-using Dalamud.Logging;
+﻿using Dalamud.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -12,54 +12,53 @@ using EurekaHelper.XIV;
 
 namespace EurekaHelper.System
 {
-    // Talks to a self-hosted EurekaTrackerServer instance (see /server in this repo) instead of
-    // ffxiv-eureka.com's Phoenix/Elixir backend. Protocol is a flat JSON object per WebSocket
-    // message (no Phoenix Channels envelope, no manual heartbeat - ClientWebSocket already
-    // handles WS ping/pong at the OS level). No password: anyone with the share code can join,
-    // and "editing" is just a local toggle each client broadcasts as a courtesy signal.
     public class EurekaConnectionManager : IDisposable
     {
-        private const string TrackerBaseUrl = "https://ffxiv-eureka.lother.dev";
-        private const string TrackerAPIUrl = TrackerBaseUrl + "/api/instances";
-        private const string TrackerWebSocketBaseUrl = "wss://ffxiv-eureka.lother.dev/ws";
-
+        private const string TrackerUrl = "wss://ffxiv-eureka.com/socket/websocket?vsn=2.0.0";
+        private const string TrackerAPIUrl = "https://ffxiv-eureka.com/api/instances";
         private static HttpClient HttpClient = new();
         private ClientWebSocket ClientWebSocket;
         private CancellationTokenSource CancellationTokenSource;
+        private List<JToken> TrackerList;
+
+        private int MessageId;
+        private int LastHeartbeatId;
 
         private bool Connected = false;
         private bool Invalid = false;
         private bool Public = false;
-        private bool IsEditingFlag = false;
         private string TrackerId;
+        private string TrackerPassword;
         private int Viewers;
-        private int Editors;
         private IEurekaTracker Tracker;
 
         public EurekaConnectionManager()
         {
             ClientWebSocket = new();
             CancellationTokenSource = new();
+            TrackerList = new();
+
+            MessageId = 0;
+            LastHeartbeatId = -1;
 
             TrackerId = String.Empty;
+            TrackerPassword = String.Empty;
             Viewers = 0;
         }
 
-        public static async Task<EurekaConnectionManager> JoinTracker(string trackerId)
+        public static async Task<EurekaConnectionManager> Connect()
         {
-            var connection = new EurekaConnectionManager { TrackerId = trackerId };
-
+            EurekaConnectionManager connection = new();
             try
             {
-                var url = $"{TrackerWebSocketBaseUrl}/{trackerId}";
-                await connection.ClientWebSocket.ConnectAsync(new Uri(url), connection.CancellationTokenSource.Token);
+                await connection.ClientWebSocket.ConnectAsync(new Uri(TrackerUrl), connection.CancellationTokenSource.Token);
                 _ = connection.Receive();
-                DalamudApi.Log.Information("Successfully connected to tracker websocket");
+                DalamudApi.Log.Information("Successfully connected to websocket");
             }
             catch (Exception ex)
             {
-                DalamudApi.Log.Information($"Failed to connect to tracker websocket: {ex.Message}");
-                connection.Invalid = true;
+                DalamudApi.Log.Information($"Failed to connect to websocket: {ex.Message}");
+                connection.Connected = false;
             }
 
             return connection;
@@ -67,23 +66,16 @@ namespace EurekaHelper.System
 
         public async Task Receive()
         {
-            ArraySegment<byte> buffer = new(new byte[4096]);
+            ArraySegment<byte> buffer = new(new byte[2048]);
             do
             {
                 WebSocketReceiveResult result;
                 using MemoryStream memoryStream = new();
-                try
+                do
                 {
-                    do
-                    {
-                        result = await ClientWebSocket.ReceiveAsync(buffer, CancellationTokenSource.Token);
-                        memoryStream.Write(buffer.Array, buffer.Offset, result.Count);
-                    } while (!result.EndOfMessage);
-                }
-                catch (Exception)
-                {
-                    break;
-                }
+                    result = await ClientWebSocket.ReceiveAsync(buffer, CancellationTokenSource.Token);
+                    memoryStream.Write(buffer.Array, buffer.Offset, result.Count);
+                } while (!result.EndOfMessage);
 
                 if (result.MessageType == WebSocketMessageType.Close)
                     break;
@@ -92,137 +84,266 @@ namespace EurekaHelper.System
                 using StreamReader streamReader = new(memoryStream, Encoding.UTF8);
 
                 string data = await streamReader.ReadToEndAsync();
-                JObject message;
-                try
-                {
-                    message = JObject.Parse(data);
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
+                JArray messageArray = JArray.Parse(data);
+                EurekaTrackerMessage message = new(
+                    messageArray[0].Type != JTokenType.Null,
+                    messageArray[1].Type == JTokenType.Null ? -1 : (int)messageArray[1],
+                    (string)messageArray[2],
+                    (string)messageArray[3],
+                    (JObject)messageArray[4]
+                );
 
-                switch ((string)message["type"])
+                switch (message.Event)
                 {
-                    case "initial":
+                    case "presence_state":
+                        Viewers = message.Payload.Count;
+                        break;
+
+                    case "presence_diff":
+                        Viewers = Viewers + ((JObject)message.Payload["joins"]).Count - ((JObject)message.Payload["leaves"]).Count;
+                        break;
+
+                    case "password_set":
+                        if ((bool)message.Payload["success"])
                         {
-                            int zoneId = (int)message["zoneId"];
-                            Tracker = Utils.GetEurekaTracker((ushort)zoneId);
+                            TrackerPassword = (string)message.Payload["password"];
+                            DalamudApi.Log.Information("Successfully set password for tracker");
+                        }
+                        else
+                        {
+                            TrackerPassword = String.Empty;
+                            DalamudApi.Log.Information("Failed to set password for tracker");
+                        }
+                        break;
 
-                            Public = (bool)message["public"];
-                            Viewers = (int)message["viewers"];
-                            Editors = (int)message["editors"];
+                    case "phx_reply":
+                        Console.WriteLine("Receiving phx_reply");
+                        if (!((string)message.Payload["status"]).Equals("ok"))
+                        {
+                            if (message.Payload["response"].Type == JTokenType.String)
+                            {
+                                if (((string)message.Payload["response"]).Equals("Instance does not exist"))
+                                {
+                                    DalamudApi.Log.Information("Invalid instance. Closing connection");
 
-                            ApplyKillTimes((JObject)message["killTimes"]);
+                                    Invalid = true;
+                                    await Close();
+                                    break;
+                                }
+                            }
 
-                            Invalid = false;
-                            Connected = true;
+                            DalamudApi.Log.Information($"Received status: \"{message.Payload["status"]}\" and response: \"{message.Payload["response"]["reason"]}\". Closing connection");
+                            await Close();
+                            break;
+                        }
+
+                        if (message.MessageId == LastHeartbeatId)
+                        {
+                            LastHeartbeatId = -1;
+                            break;
+                        }
+
+                        break;
+
+                    case "initial_payload":
+                        if (message.Payload["data"] is JArray)
+                        {
+                            foreach (var token in message.Payload["data"])
+                                TrackerList.Add(token);
 
                             break;
                         }
 
-                    case "kill_times":
-                        ApplyKillTimes((JObject)message["killTimes"]);
-                        break;
+                        int zoneId = (int)message.Payload["data"]["relationships"]["zone"]["data"]["id"];
+                        Tracker = Utils.GetEurekaTracker((ushort)zoneId);
 
-                    case "visibility":
-                        Public = (bool)message["public"];
-                        break;
+                        TrackerId = (string)message.Payload["data"]["id"];
+                        TrackerPassword = message.Payload["data"]["attributes"]["password"] != null ? (string)message.Payload["data"]["attributes"]["password"] : String.Empty;
+                        Public = message.Payload["data"]["attributes"]["data-center-id"].Type != JTokenType.Null;
 
-                    case "viewers":
-                        Viewers = (int)message["count"];
-                        break;
-
-                    case "editors":
-                        Editors = (int)message["count"];
-                        break;
-
-                    case "error":
-                        var errorMessage = (string)message["message"];
-                        if (errorMessage == "not_found")
-                        {
-                            DalamudApi.Log.Information("Invalid instance. Closing connection");
-                            Invalid = true;
-                            await Close();
-                        }
+                        if (!String.IsNullOrWhiteSpace(TrackerPassword))
+                            DalamudApi.Log.Information("Connected to tracker with password");
                         else
+                            DalamudApi.Log.Information("Connected to tracker");
+
                         {
-                            DalamudApi.Log.Information($"Received error from tracker server: {errorMessage}");
+                            var notoriousMonsters = JObject.Parse((string)message.Payload["data"]["attributes"]["notorious-monsters"]);
+                            Dictionary<ushort, long> keyValuePairs = new();
+                            foreach (var monster in notoriousMonsters)
+                                keyValuePairs.Add(ushort.Parse(monster.Key), (long)monster.Value);
+
+                            Tracker.SetPopTimes(keyValuePairs);
                         }
+
+                        Invalid = false;
+                        Connected = true;
+
+                        break;
+
+                    case "payload":
+                        Console.WriteLine("Receiving payload");
+
+                        {
+                            if (message.Payload["data"]["attributes"]?["notorious-monsters"] != null)
+                            {
+                                var notoriousMonsters = JObject.Parse((string)message.Payload["data"]["attributes"]["notorious-monsters"]);
+                                Dictionary<ushort, long> keyValuePairs = new();
+                                foreach (var monster in notoriousMonsters)
+                                    keyValuePairs.Add(ushort.Parse(monster.Key), (long)monster.Value);
+
+                                Tracker.SetPopTimes(keyValuePairs);
+                            }
+                        }
+
+                        if (message.Payload["data"]["attributes"]?["data-center-id"] != null)
+                        {
+                            if (message.Payload["data"]["attributes"]["data-center-id"].Type != JTokenType.Null)
+                            {
+                                Public = true;
+                                DalamudApi.Log.Information("Set tracker visibility to public");
+                            }
+                            else
+                            {
+                                Public = false;
+                                DalamudApi.Log.Information("Set tracker visibility to private");
+                            }
+                        }
+
                         break;
                 }
             } while (!CancellationTokenSource.Token.IsCancellationRequested);
         }
 
-        private void ApplyKillTimes(JObject killTimes)
+        public async Task Send(string data) => await ClientWebSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(data)), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
+
+        public async Task Join(string trackerId, string password = null)
         {
-            if (Tracker == null || killTimes == null)
-                return;
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{trackerId}",
+                "phx_join",
+                String.IsNullOrWhiteSpace(password) ? new JObject() : JObject.Parse(@$"{{ 'password': '{password}' }}"));
 
-            Dictionary<ushort, long> keyValuePairs = new();
-            foreach (var kv in killTimes)
-                keyValuePairs.Add(ushort.Parse(kv.Key), (long)kv.Value);
+            await Send(eurekaTrackerMessage.ToMessage());
 
-            Tracker.SetPopTimes(keyValuePairs);
+            // Send heartbeat every 30s after joining
+            _ = Task.Run(async () =>
+            {
+                while (!CancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), CancellationTokenSource.Token);
+                    await SendHeartbeat();
+                    DalamudApi.Log.Information("Sending Heartbeat");
+                }
+            }, CancellationTokenSource.Token);
         }
 
-        public async Task Send(JObject payload) =>
-            await ClientWebSocket.SendAsync(new ArraySegment<byte>(Encoding.UTF8.GetBytes(payload.ToString())), WebSocketMessageType.Text, true, CancellationTokenSource.Token);
-
-        // No password to check - this just toggles the local "I'm editing" courtesy flag and
-        // lets everyone else in the room see it (see EditorsUpdate on the server).
-        public async Task SetEditing(bool editing)
+        public static async Task<EurekaConnectionManager> JoinTracker(string trackerId, string password = null)
         {
-            IsEditingFlag = editing;
-            if (Connected)
-                await Send(JObject.Parse($@"{{ ""type"": ""set_editing"", ""editing"": {(editing ? "true" : "false")} }}"));
+            var connection = await Connect();
+            await connection.Join(trackerId, password);
+            return connection;
+        }
+
+        public async Task SendHeartbeat()
+        {
+            if (LastHeartbeatId != -1)
+            {
+                DalamudApi.Log.Information("No response to heartbeat message received within 30seconds. Closing connection");
+                await Close();
+                return;
+            }
+
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                false,
+                ++MessageId,
+                "phoenix",
+                "heartbeat",
+                new JObject());
+
+            LastHeartbeatId = MessageId;
+            await Send(eurekaTrackerMessage.ToMessage());
+        }
+
+        public async Task SetPassword(string password)
+        {
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{TrackerId}",
+                "set_password",
+                JObject.Parse(@$"{{ 'password': '{password}' }}"));
+
+            await Send(eurekaTrackerMessage.ToMessage());
         }
 
         public async Task SetTrackerVisiblity(int dataCenterId = -1)
         {
-            await Send(JObject.Parse($@"{{ ""type"": ""set_visibility"", ""dataCenterId"": {(dataCenterId == -1 ? "null" : dataCenterId)} }}"));
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{TrackerId}",
+                "set_instance_information",
+                JObject.Parse($"{{ instance_id: null, data_center_id: {(dataCenterId == -1 ? "null" : dataCenterId)} }}"));
+
+            await Send(eurekaTrackerMessage.ToMessage());
         }
 
         public async Task SetPopTime(ushort trackerId, long killTime)
         {
-            await Send(JObject.Parse($@"{{ ""type"": ""set_kill_time"", ""monsterId"": {trackerId}, ""time"": {killTime} }}"));
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{TrackerId}",
+                "set_kill_time",
+                JObject.Parse($"{{ id: {trackerId}, time: {killTime} }}"));
+
+            await Send(eurekaTrackerMessage.ToMessage());
         }
 
         public async Task Reset(ushort trackerId)
         {
-            await Send(JObject.Parse($@"{{ ""type"": ""reset_kill"", ""monsterId"": {trackerId} }}"));
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{TrackerId}",
+                "reset_kill",
+                JObject.Parse($"{{ id: {trackerId} }}"));
+
+            await Send(eurekaTrackerMessage.ToMessage());
         }
 
         public async Task ResetAll()
         {
-            await Send(JObject.Parse(@"{ ""type"": ""reset_all"" }"));
+            EurekaTrackerMessage eurekaTrackerMessage = new(
+                true,
+                ++MessageId,
+                $"instance:{TrackerId}",
+                "reset_all",
+                null
+                );
+
+            await Send(eurekaTrackerMessage.ToMessage());
         }
 
         public async Task Close()
         {
             Connected = false;
 
-            try
-            {
-                if (ClientWebSocket.State == WebSocketState.Open)
-                    await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
-            }
-            catch (Exception)
-            {
-                // already closed/aborted, nothing to do
-            }
-
+            await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
             CancellationTokenSource.Cancel();
             DalamudApi.Log.Information("Successfully closed the socket connection");
 
             Public = false;
             TrackerId = String.Empty;
+            TrackerPassword = String.Empty;
             Tracker = null;
         }
 
-        public static async Task<string> CreateTracker(int zoneId)
+        public static async Task<(string trackerId, string password)> CreateTracker(int zoneId)
         {
-            string jsonContent = JObject.Parse($@"{{ ""zoneId"": {zoneId} }}").ToString();
+            string jsonContent = JObject.Parse(@$"{{ 'data': {{ 'attributes': {{ 'zone-id': {zoneId} }}, 'type': 'instances' }} }}").ToString();
 
             var httpResponseMessage = await HttpClient.PostAsync(
                 TrackerAPIUrl,
@@ -232,15 +353,18 @@ namespace EurekaHelper.System
             {
                 string response = await httpResponseMessage.Content.ReadAsStringAsync();
                 var json = JObject.Parse(response);
-                return (string)json["id"];
+                string trackerId = (string)json["data"]["id"];
+                string password = (string)json["data"]["attributes"]["password"];
+
+                return (trackerId, password);
             }
 
-            return String.Empty;
+            return (String.Empty, String.Empty);
         }
 
-        public static async Task<string> ExportTracker(string oldTrackerId)
+        public static async Task<(string trackerId, string password)> ExportTracker(string oldTrackerId)
         {
-            string jsonContent = JObject.Parse($@"{{ ""zoneId"": 0, ""copyFrom"": {JToken.FromObject(oldTrackerId)} }}").ToString();
+            string jsonContent = JObject.Parse(@$"{{ 'data': {{ 'attributes': {{ 'copy-from': '{oldTrackerId}' }}, 'type': 'instances' }} }}").ToString();
 
             var httpResponseMessage = await HttpClient.PostAsync(
                 TrackerAPIUrl,
@@ -250,34 +374,28 @@ namespace EurekaHelper.System
             {
                 var response = await httpResponseMessage.Content.ReadAsStringAsync();
                 var json = JObject.Parse(response);
-                return (string)json["id"];
+                string trackerId = (string)json["data"]["id"];
+                string password = (string)json["data"]["attributes"]["password"];
+
+                return (trackerId, password);
             }
 
-            return String.Empty;
+            return (String.Empty, String.Empty);
         }
 
-        public static async Task<List<string>> GetPublicTrackers(int zoneId, int dataCenterId)
-        {
-            var httpResponseMessage = await HttpClient.GetAsync($"{TrackerAPIUrl}?zoneId={zoneId}&dataCenterId={dataCenterId}");
-            if (!httpResponseMessage.IsSuccessStatusCode)
-                return new List<string>();
-
-            var response = await httpResponseMessage.Content.ReadAsStringAsync();
-            var json = JObject.Parse(response);
-            return json["ids"]?.ToObject<List<string>>() ?? new List<string>();
-        }
+        public List<JToken> GetCurrentTrackers() => TrackerList;
 
         public bool IsConnected() => this.Connected;
 
         public int GetViewers() => this.Viewers;
 
-        public int GetEditors() => this.Editors;
-
         public string GetTrackerId() => this.TrackerId;
+
+        public string GetTrackerPassword() => this.TrackerPassword;
 
         public bool IsInvalid() => this.Invalid;
 
-        public bool CanModify() => this.IsEditingFlag;
+        public bool CanModify() => !String.IsNullOrWhiteSpace(this.TrackerPassword);
 
         public bool IsPublic() => this.Public;
 

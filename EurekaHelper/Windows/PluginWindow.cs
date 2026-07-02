@@ -70,6 +70,7 @@ namespace EurekaHelper.Windows
         }
 
         public string TrackerCode = string.Empty;
+        public string TrackerPassword = string.Empty;
 
         public async void DrawTrackerTab()
         {
@@ -127,23 +128,14 @@ namespace EurekaHelper.Windows
                         $"{Utils.CombineUrl(Constants.EurekaTrackerLink, Connection.GetTrackerId())}");
                 Utils.SetTooltip(Loc.Text("Copy tracker link to clipboard"));
 
-                ImGui.SameLine();
-
                 if (Connection.CanModify())
                 {
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.LockOpen))
-                        _ = Task.Run(async () => { await Connection.SetEditing(false); });
-                    Utils.SetTooltip(Loc.Text("Editing enabled - click to go back to view-only"));
-                }
-                else
-                {
-                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Lock))
-                        _ = Task.Run(async () => { await Connection.SetEditing(true); });
-                    Utils.SetTooltip(Loc.Text("View-only - click to enable editing (anyone with the link can do this, there's no password)"));
-                }
+                    ImGui.SameLine();
 
-                if (Connection.CanModify())
-                {
+                    if (ImGuiComponents.IconButton(FontAwesomeIcon.Key))
+                        Utils.CopyToClipboard(Loc.Format("Password: {0}", Connection.GetTrackerPassword()));
+                    Utils.SetTooltip(Loc.Text("Copy tracker password to clipboard"));
+
                     ImGui.SameLine();
 
                     if (Connection.IsPublic())
@@ -283,10 +275,11 @@ namespace EurekaHelper.Windows
             }
 
             ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(5.0f, 5.0f));
-            if (ImGui.BeginTable("TrackerConnectionSettings", 2,
+            if (ImGui.BeginTable("TrackerConnectionSettings", 3,
                     ImGuiTableFlags.Borders | ImGuiTableFlags.NoBordersInBody))
             {
                 ImGui.TableSetupColumn(Loc.Text("Code"), ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn(Loc.Text("Password"), ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn(Loc.Text("Button"));
 
                 ImGui.TableNextColumn();
@@ -297,21 +290,39 @@ namespace EurekaHelper.Windows
                 ImGui.InputTextWithHint("##TrackerCode", Loc.Text("Enter 6 digit code"), ref TrackerCode, 6);
 
                 ImGui.TableNextColumn();
+                ImGui.AlignTextToFramePadding();
+                ImGui.Text(Loc.Text("Password:"));
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(200f);
+                ImGui.InputTextWithHint("##TrackerPassword", Loc.Text("Enter tracker password"), ref TrackerPassword, 100);
+                Utils.SetTooltip(
+                    Loc.Text("Don't input if you just want to join a tracker.\nIf you have the password, enter the correct password or you'll need to press \"Set\" again."));
+
+                ImGui.TableNextColumn();
                 if (ImGui.Button(Loc.Text("Set"), new Vector2(ImGui.GetContentRegionAvail().X, 0.0f)))
                 {
-                    if (!string.IsNullOrWhiteSpace(TrackerCode) && Connection.GetTrackerId() != TrackerCode)
+                    if (!string.IsNullOrWhiteSpace(TrackerCode))
                     {
                         _ = Task.Run(async () =>
                         {
-                            if (Connection.IsConnected())
-                                await Connection.Close();
+                            if (Connection.GetTrackerId() == TrackerCode)
+                            {
+                                if (Connection.IsConnected() && !Connection.CanModify() &&
+                                    !string.IsNullOrWhiteSpace(TrackerPassword))
+                                    await Connection.SetPassword(TrackerPassword);
+                            }
+                            else
+                            {
+                                if (Connection.IsConnected())
+                                    await Connection.Close();
 
-                            Connection = await EurekaConnectionManager.JoinTracker(TrackerCode);
+                                Connection = await EurekaConnectionManager.JoinTracker(TrackerCode, TrackerPassword);
+                            }
                         });
                     }
                 }
 
-                Utils.SetTooltip(Loc.Text("Joins a tracker with the specified ID"));
+                Utils.SetTooltip(Loc.Text("Joins a tracker with the specified ID and password"));
 
                 ImGui.EndTable();
             }
@@ -324,11 +335,11 @@ namespace EurekaHelper.Windows
 
         public async Task CreateTracker(int zoneId, bool printMessage = false)
         {
-            var trackerId = await EurekaConnectionManager.CreateTracker(zoneId);
+            (string trackerId, string password) = await EurekaConnectionManager.CreateTracker(zoneId);
 
-            if (string.IsNullOrWhiteSpace(trackerId))
+            if (string.IsNullOrWhiteSpace(trackerId) && string.IsNullOrWhiteSpace(password))
             {
-                DalamudApi.Log.Error("TrackerId not returned from API for some reason.");
+                DalamudApi.Log.Error("TrackerId and Password not returned from API for some reason.");
                 return;
             }
 
@@ -336,8 +347,8 @@ namespace EurekaHelper.Windows
                 await Connection.Close();
 
             TrackerCode = trackerId;
-            Connection = await EurekaConnectionManager.JoinTracker(trackerId);
-            await Connection.SetEditing(true); // you just created it, so you can edit it right away
+            TrackerPassword = password;
+            Connection = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
@@ -346,11 +357,11 @@ namespace EurekaHelper.Windows
 
         public async Task ExportTracker(string oldTrackerId, bool printMessage = false)
         {
-            var trackerId = await EurekaConnectionManager.ExportTracker(oldTrackerId);
+            (string trackerId, string password) = await EurekaConnectionManager.ExportTracker(oldTrackerId);
 
-            if (string.IsNullOrWhiteSpace(trackerId))
+            if (string.IsNullOrWhiteSpace(trackerId) && string.IsNullOrWhiteSpace(password))
             {
-                DalamudApi.Log.Error("TrackerId not returned from API for some reason.");
+                DalamudApi.Log.Error("TrackerId and Password not returned from API for some reason.");
                 return;
             }
 
@@ -358,8 +369,8 @@ namespace EurekaHelper.Windows
                 await Connection.Close();
 
             TrackerCode = trackerId;
-            Connection = await EurekaConnectionManager.JoinTracker(trackerId);
-            await Connection.SetEditing(true); // you just created it, so you can edit it right away
+            TrackerPassword = password;
+            Connection = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
