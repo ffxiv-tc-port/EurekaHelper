@@ -23,7 +23,10 @@ namespace EurekaHelper
 {
     internal static class Constants
     {
-        public static readonly string EurekaTrackerLink = "https://ffxiv-eureka.com/";
+        // TODO: replace with your own EurekaTrackerServer domain (see /server in this repo).
+        // Only used for the "open tracker in browser" button; no web frontend is included here,
+        // so either build one at this domain or remove that button.
+        public static readonly string EurekaTrackerLink = "https://tracker.example.com/";
 
         // 732 - Anemos
         // 763 - Pagos

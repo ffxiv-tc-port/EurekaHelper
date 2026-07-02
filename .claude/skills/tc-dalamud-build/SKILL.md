@@ -5,153 +5,117 @@ description: Build and localize this Dalamud plugin (EurekaHelper) for the Tradi
 
 # Building EurekaHelper for the TC client
 
-## The core problem: TC Dalamud lags mainline Dalamud
+## Core problem: TC Dalamud lags mainline Dalamud
 
-The TC (Taiwan) client is launched via a third-party tool, **FFXIVSimpleLauncher**,
-which manages its own Dalamud build at
-`%appdata%\FFXIVSimpleLauncher\Dalamud\Injector\`. That build tracks upstream
-Dalamud on its own schedule and can be **months behind** the global
-`%appdata%\XIVLauncher\addon\Hooks\dev\` install.
+TC (Taiwan) client uses **FFXIVSimpleLauncher**, which bundles its own Dalamud
+at `%appdata%\FFXIVSimpleLauncher\Dalamud\Injector\`, months behind global
+XIVLauncher's `%appdata%\XIVLauncher\addon\Hooks\dev\`.
 
-Concretely (as of this writing): global XIVLauncher's Dalamud already ships the
-modern `Dalamud.Bindings.ImGui` binding and a `Window(string, ImGuiWindowFlags,
-bool)` 3-arg constructor. The TC build only ships the classic `ImGui.NET.dll` /
-`ImGuiScene.dll` packages. If you build EurekaHelper's `main` branch (which
-targets the modern API) and load it in the TC client, it throws at runtime:
+Global Dalamud already ships modern `Dalamud.Bindings.ImGui` + a
+`Window(string, ImGuiWindowFlags, bool)` 3-arg ctor. TC only has classic
+`ImGui.NET.dll`/`ImGuiScene.dll`. Building `main` (modern API) and loading in
+TC throws:
 
 ```
 System.MissingMethodException: Method not found: 'Void Dalamud.Interface.Windowing.Window..ctor(...)'
 ```
 
-This is **not fixable by editing the .csproj alone** — it's a real API-surface
-mismatch. Don't try to keep the modern namespace and just juggle references.
+Real API-surface mismatch — not fixable via csproj alone. Don't try to keep
+the modern namespace and juggle references.
 
-## Before touching anything: check what TC Dalamud actually has
+## Check what TC Dalamud actually has, first
 
 ```bash
 ls "$APPDATA/FFXIVSimpleLauncher/Dalamud/Injector" | grep -i imgui
-```
-
-If you see `ImGui.NET.dll` + `ImGuiScene.dll` (not `Dalamud.Bindings.ImGui.dll`),
-TC is on the old API generation and the plugin source must match it.
-
-Confirm the actual `Window` ctor available:
-```bash
 ilspycmd -t "Dalamud.Interface.Windowing.Window" "$APPDATA/FFXIVSimpleLauncher/Dalamud/Injector/Dalamud.dll" | grep -n "protected Window"
 ```
+`ImGui.NET.dll` + `ImGuiScene.dll` (no `Dalamud.Bindings.ImGui.dll`) = old API
+generation, plugin source must match it.
 
-## The fix: use git history, don't hand-port the API backward
+## Fix: branch from git history, don't hand-port the API backward
 
-Don't manually rewrite `Dalamud.Bindings.ImGui` calls back to `ImGuiNET` by
-hand across every window file — it's large, error-prone, and there's a much
-safer path: **this repo has an actual historical commit that already targets
-the classic ImGuiNET API**, from before the upstream author migrated.
+Don't hand-rewrite `Dalamud.Bindings.ImGui` calls to `ImGuiNET` across every
+window file. Instead, this repo has a real historical commit already on the
+classic ImGuiNET API (pre-migration):
 
-Find it:
 ```bash
 git log --oneline --all -S "using Dalamud.Bindings.ImGui" -- EurekaHelper/Windows/PluginWindow.cs | tail -5
 ```
-The commit **before** the one that introduced `Dalamud.Bindings.ImGui` (check
-with `git show <that-commit>~1:EurekaHelper/Windows/PluginWindow.cs | head`) is
-your base. At the time of writing this was `b1f665d` ("remove test
-artifacts") — verify it's still current by re-running the `-S` search, don't
-assume the hash.
-
-Branch off it, and cherry-pick forward only the commits between there and
-`main` that are real functional fixes (not reformatting/verbump/SDK-upgrade
-noise — check each with `git show <hash> --stat`, most of the diff between an
-old commit and current `main` is `csharpier` reformatting churn):
+The commit **before** the one introducing `Dalamud.Bindings.ImGui` is the
+base (verify with `-S` search each time — don't trust a cached hash).
 
 ```bash
-git checkout -b tc-<version> b1f665d
-git cherry-pick <real-fix-commit>   # resolve conflicts by keeping the newer side
+git checkout -b tc-<version> <old-api-commit>
+git cherry-pick <real-fix-commit>   # only functional fixes, not reformatting/verbump noise — check with `git show <hash> --stat`
 ```
 
-Then apply TC-specific csproj changes on top (see below) and rebuild.
+## csproj changes on the old-API base
 
-## csproj changes needed on the old-API base
-
-The old-API commit already has the right shape (explicit `<Reference>` HintPath
-entries for `Dalamud`, `ImGui.NET`, `ImGuiScene`, etc. — see
-`D:\LatihasChocobo-master\LatihasChocobo.csproj` and
-`D:\FFTriadBuddyDalamud\TriadBuddy.csproj` for confirmed-working examples of
-this exact pattern against the same TC Dalamud). You only need to change:
+Old-API commit already has explicit `<Reference>` HintPath entries (see
+`D:\LatihasChocobo-master\LatihasChocobo.csproj`,
+`D:\FFTriadBuddyDalamud\TriadBuddy.csproj` for confirmed-working examples).
+Only change needed:
 
 ```xml
 <DalamudLibPath>$(appdata)\FFXIVSimpleLauncher\Dalamud\Injector\</DalamudLibPath>
 ```
 
-(instead of the default `$(appdata)\XIVLauncher\addon\Hooks\dev\`).
+If instead using a *modern*-SDK csproj (`Sdk="Dalamud.NET.Sdk/..."`):
+`Sdk.props` bakes `AssemblySearchPaths` from the default `DalamudLibPath`
+before your `PropertyGroup` override is evaluated, so reassigning
+`<DalamudLibPath>` alone won't redirect the implicit `Dalamud` reference — you
+need explicit `<Reference Remove="Dalamud"/>` + a HintPath override. The
+old-API-base approach above avoids this entirely.
 
-If working from a *modern*-SDK csproj instead (`Sdk="Dalamud.NET.Sdk/..."`),
-note that `Dalamud.NET.Sdk`'s `Sdk.props` bakes `AssemblySearchPaths` from the
-SDK-default `DalamudLibPath` **before** any later `PropertyGroup` override
-takes effect (MSBuild property expansion is immediate/textual at the point
-each line is evaluated, not late-bound) — so just reassigning
-`<DalamudLibPath>` is not enough to redirect the implicit `<Reference
-Include="Dalamud"/>`. You'd need explicit `<Reference Remove="Dalamud"/>` +
-`<Reference Include="Dalamud"><HintPath>...` overrides. This is one more
-reason the old-API-base approach above is simpler than fighting the modern SDK.
+## Verify — don't trust "0 build errors"
 
-## Verify before declaring success — don't trust "0 build errors"
-
-C# happily binds to whatever `Window` constructor overload is available
-without complaint at compile time. A clean build is not proof the plugin will
-load. After building, inspect the actual emitted IL:
+C# happily binds to whatever `Window` ctor overload is available at compile
+time; a clean build doesn't prove the plugin loads. Inspect emitted IL:
 
 ```bash
 rm -rf EurekaHelper/bin EurekaHelper/obj
 dotnet build EurekaHelper/EurekaHelper.csproj -c Debug
 ilspycmd -il -t "EurekaHelper.Windows.PluginWindow" "EurekaHelper/bin/Debug/EurekaHelper.dll" | grep "Window::.ctor"
 ```
-Confirm the printed signature matches what's actually in TC's `Dalamud.dll`
-(from the `ilspycmd -t "Dalamud.Interface.Windowing.Window" ...` check above).
+Confirm it matches TC's actual `Dalamud.dll` signature from the check above.
 
-## .NET SDK version note
+## .NET SDK version
 
-This machine only has .NET SDK 9 installed (`dotnet --list-sdks`). If the
-target commit's csproj says `net10.0-windows`, drop it to `net9.0-windows`
-(and if using `Dalamud.NET.Sdk/15.0.0`, add `<LangVersion>13.0</LangVersion>`
-since that SDK defaults to C# 14 which requires the .NET 10 compiler). Not
-needed on the old-API base above, which already targets `net9.0-windows`.
+Machine only has .NET SDK 9 (`dotnet --list-sdks`). If target csproj says
+`net10.0-windows`, drop to `net9.0-windows` (and add
+`<LangVersion>13.0</LangVersion>` if using `Dalamud.NET.Sdk/15.0.0`, which
+defaults to C# 14 requiring the .NET 10 compiler). Not needed on the old-API
+base, already `net9.0-windows`.
 
-## Localizing to zh-TW (Traditional Chinese)
+## Localizing to zh-TW
 
-If a prior TC build of this plugin exists (e.g. someone's shipped
-`EurekaHelper.dll`), decompile it and reuse its translation dictionary instead
-of translating from scratch:
+If a prior TC build's `EurekaHelper.dll` exists, decompile and reuse its
+translation dictionary instead of translating from scratch:
 
 ```bash
-dotnet tool install -g ilspycmd   # if not already installed
+dotnet tool install -g ilspycmd   # if needed
 ilspycmd -p -o <outdir> <path-to-their-EurekaHelper.dll>
 ```
 
-Look for a `Loc.cs`-style static class with an English→zh-TW `Dictionary<string,string>`
-— that's directly portable. Its typical API:
-- `Loc.Text(string englishLiteral)` — direct string lookup, falls back to input if missing
-- `Loc.Format(string format, params object[] args)` — `Loc.Text` the format string, then `string.Format`
-- `Loc.Enum<T>(T value)` / `Loc.EnumNames<T>()` — for enum display values / combo box options
-- `Loc.TryEurekaName(...)`, `Loc.RelicStage(...)` — domain-specific lookups (NM/boss names, relic stage names)
+Look for a `Loc.cs`-style static class with an English→zh-TW
+`Dictionary<string,string>`:
+- `Loc.Text(string)` — direct lookup, falls back to input if missing
+- `Loc.Format(string format, params object[] args)` — `Loc.Text` then `string.Format`
+- `Loc.Enum<T>(T)` / `Loc.EnumNames<T>()` — enum display values / combo options
+- `Loc.TryEurekaName(...)`, `Loc.RelicStage(...)` — domain-specific NM/boss/relic-stage lookups
 
-**Match the decompiled reference's code generation to your target branch.**
-If the reference was built from old-ImGuiNET-era source and you're localizing
-current `main` (modern API), the file structure will differ enough that
-line-by-line diffing is unreliable — you'll get much cleaner mapping by
-localizing the **old-API branch** (see above) instead, since it's structurally
-closer to what any historical TC build was compiled from.
+Localize the **old-API branch**, not modern `main` — historical TC builds
+were compiled from that structure, so line-by-line mapping is far cleaner.
 
-After wiring up `Loc.*` calls, also check `EurekaHelper.yaml` — it feeds
-`DalamudPackager`'s generated `EurekaHelper.json` manifest (`Name`,
-`Punchline`, `Description`, `Tags`) shown in the plugin installer UI. This is
-separate from the in-game ImGui windows and easy to miss.
+Also check `EurekaHelper.yaml` (feeds `DalamudPackager`'s manifest: `Name`,
+`Punchline`, `Description`, `Tags`) — separate from ImGui windows, easy to miss.
 
-## Auto-incrementing the build/version number
+## Auto-incrementing build number
 
-To avoid manually bumping `<Version>` on every local TC build, use the
-build-counter pattern from `D:\Saucy\Saucy\Saucy.csproj`: a `BuildNumber.txt`
-file next to the csproj, read/incremented/persisted via plain MSBuild
-properties (not inside a `<Target>`, so it's evaluated in time for
-`DalamudPackager` to pick up `$(Version)` when stamping the manifest):
+Use the build-counter pattern from `D:\Saucy\Saucy\Saucy.csproj`: a
+`BuildNumber.txt` next to the csproj, read/incremented via plain MSBuild
+properties (not inside a `<Target>`, so it's ready before `DalamudPackager`
+stamps `$(Version)`):
 
 ```xml
 <PropertyGroup>
@@ -170,14 +134,13 @@ properties (not inside a `<Target>`, so it's evaluated in time for
 </Target>
 ```
 
-Commit `BuildNumber.txt` to git (Saucy does — don't gitignore it) so the
-counter persists across machines/clones instead of silently resetting to 0.
+Commit `BuildNumber.txt` (don't gitignore it) so the counter persists across
+machines/clones.
 
-## Coordination note (learned the hard way)
+## Coordination note
 
-If delegating chunks of this to background agents, give each one an isolated
-`git worktree` (`isolation: "worktree"` on the Agent tool call). Running
-multiple agents against the *same* checkout while also doing manual `git
-checkout`/edits yourself causes branch-switch clobbering and concurrent-write
-races on the same files. For a repo this size, doing the localization/build
-work directly (without spawning agents) is often just as fast and much safer.
+If delegating chunks to background agents, give each an isolated `git
+worktree` (`isolation: "worktree"`). Running multiple agents on the same
+checkout while also editing manually causes branch-switch clobbering and
+concurrent-write races. For a repo this size, doing localization/build work
+directly (no agents) is often just as fast and safer.
