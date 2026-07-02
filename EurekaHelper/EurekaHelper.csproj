@@ -1,11 +1,29 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	<!-- Bumps a persisted build counter on every build and folds it into the assembly version's
+	     4th component, so each local TC build gets a distinct, easily-identifiable version number.
+	     Pattern borrowed from D:\Saucy\Saucy\Saucy.csproj. Computed here as a plain evaluated
+	     property (not inside a Target) so it lands before DalamudPackager reads $(Version) to
+	     stamp EurekaHelper.json. -->
 	<PropertyGroup>
 		<Authors>Snowy, KangasZ</Authors>
-		<Version>7.15.0.0-TCfix</Version>
-		<Description>A plugin to enchance your Eureka experience, updated for the most current patch</Description>
+		<BuildNumberFile>$(MSBuildProjectDirectory)\BuildNumber.txt</BuildNumberFile>
+		<_PreviousBuildNumber Condition="Exists('$(BuildNumberFile)')">$([System.IO.File]::ReadAllText('$(BuildNumberFile)').Trim())</_PreviousBuildNumber>
+		<_PreviousBuildNumber Condition="'$(_PreviousBuildNumber)' == ''">0</_PreviousBuildNumber>
+		<BuildNumber>$([MSBuild]::Add($(_PreviousBuildNumber), 1))</BuildNumber>
+		<VersionPrefix>7.15.0</VersionPrefix>
+		<Version>$(VersionPrefix).$(BuildNumber)</Version>
+		<AssemblyVersion>$(Version)</AssemblyVersion>
+		<FileVersion>$(Version)</FileVersion>
+		<Description>A plugin to enchance your Eureka experience, updated for the most current patch (TC build)</Description>
 		<PackageProjectUrl>https://github.com/KangasZ/EurekaHelper</PackageProjectUrl>
 	</PropertyGroup>
-	
+
+	<!-- Persists the incremented counter for next build. Timing doesn't matter here (unlike the
+	     version properties above) since this only needs to be on disk before the NEXT invocation. -->
+	<Target Name="PersistBuildNumber" AfterTargets="Build">
+		<WriteLinesToFile File="$(BuildNumberFile)" Lines="$(BuildNumber)" Overwrite="true" />
+	</Target>
+
     <PropertyGroup>
         <TargetFramework>net9.0-windows</TargetFramework>
 		<Platforms>x64</Platforms>
