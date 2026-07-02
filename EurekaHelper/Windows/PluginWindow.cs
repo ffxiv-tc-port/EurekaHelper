@@ -1209,11 +1209,11 @@ namespace EurekaHelper.Windows
 
             ImGui.TextColored(ImGuiColors.ParsedPurple, Loc.Text("Commands"));
             ImGui.Indent();
-            ImGui.Text("/eurekahelper | /eh | /ehelper → Opens / Closes the configuration window");
-            ImGui.Text("/etrackers → Attempts to get a tracker for the current instance in the same datacenter.");
-            ImGui.Text("/erelic → Opens / Closes the Eureka Relic helper window");
-            ImGui.Text("/ealarms → Opens / Closes the Eureka Alarms window");
-            ImGui.Text("/arisu → Display next weather for Crab, Cassie & Skoll");
+            ImGui.Text(Loc.Text("/eurekahelper | /eh | /ehelper -> Opens / Closes the configuration window"));
+            ImGui.Text(Loc.Text("/etrackers -> Attempts to get a tracker for the current instance in the same datacenter."));
+            ImGui.Text(Loc.Text("/erelic -> Opens / Closes the Eureka Relic helper window"));
+            ImGui.Text(Loc.Text("/ealarms -> Opens / Closes the Eureka Alarms window"));
+            ImGui.Text(Loc.Text("/arisu -> Display next weather for Crab, Cassie & Skoll"));
             ImGui.Unindent();
             ImGui.Dummy(new Vector2(0.0f, 10.0f));
 
