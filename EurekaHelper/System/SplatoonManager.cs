@@ -117,20 +117,44 @@ namespace EurekaHelper.System
         // auto-registers an aggro-type entry for names matching a known pattern (see
         // MagicNamePatterns/BloodNamePatterns) - still radius 0 (undrawn) until measured via the
         // Debug tab, same as the hand-seeded entries.
+        // Diagnostic counters, shown in the Debug tab's Seen Monsters section, so a stuck "0
+        // discovered" can be pinned to an exact pipeline stage from a screenshot instead of
+        // guessing blind (this got bounced on several wrong guesses already - level scale
+        // mismatch, IsTargetable flakiness - each only discoverable after the fact).
+        private int _lastScanTotalObjects;
+        private int _lastScanBattleNpcs;
+        private int _lastScanEnemyKind;
+        private int _lastScanAliveEnemies;
+
+        public (int TotalObjects, int BattleNpcs, int EnemyKind, int AliveEnemies) GetLastScanCounts() =>
+            (_lastScanTotalObjects, _lastScanBattleNpcs, _lastScanEnemyKind, _lastScanAliveEnemies);
+
         private void OnFrameworkUpdate(IFramework framework)
         {
             var newNames = false;
             var newlyClassified = false;
 
+            var totalObjects = 0;
+            var battleNpcs = 0;
+            var enemyKind = 0;
+            var aliveEnemies = 0;
+
             foreach (var obj in DalamudApi.ObjectTable)
             {
+                totalObjects++;
+
+                if (obj is not IBattleNpc battleNpc)
+                    continue;
+                battleNpcs++;
+
                 // Only real monsters - IBattleNpc also matches players' own pets/chocobo/summons
                 // (Scholar fairy, Summoner Egi/Demi-summon, Machinist turret, etc.), which aren't
                 // Eureka mobs and shouldn't clutter this list. BattleNpcKind alone isn't reliable
                 // for every summon type, so also exclude anything with a non-zero OwnerId (i.e.
                 // belongs to a player) as a second check.
-                if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
+                if (battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
                     continue;
+                enemyKind++;
 
                 // Skip dead bodies (corpse still exists briefly before despawning). NOTE: an
                 // earlier version of this also skipped !IsTargetable to catch transient nameless
@@ -140,6 +164,7 @@ namespace EurekaHelper.System
                 // covers "stop drawing once dead" without needing this scan-time check too.
                 if (battleNpc.IsDead)
                     continue;
+                aliveEnemies++;
 
                 var name = battleNpc.Name.TextValue;
                 if (string.IsNullOrWhiteSpace(name))
@@ -166,6 +191,11 @@ namespace EurekaHelper.System
                 if (AutoClassify(name))
                     newlyClassified = true;
             }
+
+            _lastScanTotalObjects = totalObjects;
+            _lastScanBattleNpcs = battleNpcs;
+            _lastScanEnemyKind = enemyKind;
+            _lastScanAliveEnemies = aliveEnemies;
 
             if (newNames)
                 SaveSeenMonsters();

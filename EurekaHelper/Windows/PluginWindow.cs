@@ -1296,6 +1296,10 @@ namespace EurekaHelper.Windows
                 var seenMonsters = splatoonManager.GetSeenMonsters().OrderBy(x => x).ToList();
                 ImGui.Text(Loc.Format("{0} unique names seen.", seenMonsters.Count));
 
+                var (totalObjects, battleNpcs, enemyKind, aliveEnemies) = splatoonManager.GetLastScanCounts();
+                ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1f),
+                    Loc.Format("Diagnostic (last scan): {0} objects -> {1} BattleNpc -> {2} Enemy-kind (not pet/summon) -> {3} alive.", totalObjects, battleNpcs, enemyKind, aliveEnemies));
+
                 if (ImGui.BeginTable("SeenMonstersTable", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY, new Vector2(0, 200)))
                 {
                     ImGui.TableSetupColumn(Loc.Text("Name"));
