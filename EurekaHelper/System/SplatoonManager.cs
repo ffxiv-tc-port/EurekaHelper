@@ -145,11 +145,12 @@ namespace EurekaHelper.System
                 if (string.IsNullOrWhiteSpace(name))
                     continue;
 
-                // Mobs 3+ levels below the player aren't a real threat (they only aggro if you
-                // attack first) - not worth tracking/drawing.
-                var playerLevel = DalamudApi.ClientState.LocalPlayer?.Level ?? 0;
-                if (playerLevel > 0 && battleNpc.Level < playerLevel - 3)
-                    continue;
+                // NOTE: previously filtered mobs 3+ levels below the player here, but Eureka
+                // mobs are leveled on the separate Elemental Level track, not the character's
+                // actual class/job level - comparing IBattleNpc.Level against
+                // LocalPlayer.Level compared two unrelated scales and filtered out nearly every
+                // Eureka mob (job level 90+ vs. Elemental level ~20-65). Removed until there's a
+                // reliable way to read the player's Elemental Level for a correct comparison.
 
                 // Logging "seen" and actually having an AggroRanges entry are separate concerns -
                 // deliberately NOT gating classification on _seenMonsters.Add() here. A name
