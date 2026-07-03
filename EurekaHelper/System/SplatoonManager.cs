@@ -123,10 +123,12 @@ namespace EurekaHelper.System
 
             foreach (var obj in DalamudApi.ObjectTable)
             {
-                // Only real monsters - IBattleNpc also matches players' own pets/chocobo
-                // companions (BattleNpcKind Pet/Chocobo), which aren't Eureka mobs and shouldn't
-                // clutter this list.
-                if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy)
+                // Only real monsters - IBattleNpc also matches players' own pets/chocobo/summons
+                // (Scholar fairy, Summoner Egi/Demi-summon, Machinist turret, etc.), which aren't
+                // Eureka mobs and shouldn't clutter this list. BattleNpcKind alone isn't reliable
+                // for every summon type, so also exclude anything with a non-zero OwnerId (i.e.
+                // belongs to a player) as a second check.
+                if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
                     continue;
 
                 var name = battleNpc.Name.TextValue;
