@@ -146,14 +146,13 @@ namespace EurekaHelper.System
                     continue;
                 battleNpcs++;
 
-                // NOTE: BattleNpcKind != Enemy previously filtered out ALL 18/18 BattleNpc found
-                // in testing (diagnostic showed 18 BattleNpc -> 0 passing) - this build's older
-                // Dalamud API apparently doesn't populate/match BattleNpcKind the way current
-                // Dalamud docs describe, or its Enemy value differs on this API level. Dropped
-                // that check entirely; OwnerId == 0 alone is still enough to exclude players' own
-                // pets/chocobo/summons (which always have an owner), without needing BattleNpcKind.
-                if (battleNpc.OwnerId != 0)
-                    continue;
+                // NOTE: BOTH BattleNpcKind != Enemy AND OwnerId != 0 were tried here and each, in
+                // turn, filtered out 100% of BattleNpc found in testing (18/18, then 41/41) -
+                // this build's older TC Dalamud API apparently doesn't populate these fields the
+                // way current Dalamud's docs describe. Giving up on field-level pet/summon
+                // filtering for now; accepting the rare false positive (an actual player pet
+                // slipping into the list) in exchange for the feature working at all. Revisit if
+                // a reliable field is found.
                 enemyKind++;
 
                 // Skip dead bodies (corpse still exists briefly before despawning). NOTE: an
