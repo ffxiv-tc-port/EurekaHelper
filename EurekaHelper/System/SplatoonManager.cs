@@ -132,8 +132,21 @@ namespace EurekaHelper.System
                 if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
                     continue;
 
+                // Skip dead bodies (corpse still exists briefly before despawning) and anything
+                // currently untargetable - the latter also happens to catch short-lived, nameless
+                // skill-effect actors (e.g. attack telegraphs implemented as a transient BattleNpc)
+                // that were getting scanned, drawn, then vanishing a few seconds later.
+                if (battleNpc.IsDead || !battleNpc.IsTargetable)
+                    continue;
+
                 var name = battleNpc.Name.TextValue;
                 if (string.IsNullOrWhiteSpace(name))
+                    continue;
+
+                // Mobs 3+ levels below the player aren't a real threat (they only aggro if you
+                // attack first) - not worth tracking/drawing.
+                var playerLevel = DalamudApi.ClientState.LocalPlayer?.Level ?? 0;
+                if (playerLevel > 0 && battleNpc.Level < playerLevel - 3)
                     continue;
 
                 // Logging "seen" and actually having an AggroRanges entry are separate concerns -
@@ -254,6 +267,7 @@ namespace EurekaHelper.System
                             color = range.Color,
                             Filled = true,
                             thicc = range.Thickness,
+                            onlyTargetable = true, // stop drawing once the actor dies/despawns
                         });
                     }
                     else
@@ -266,6 +280,7 @@ namespace EurekaHelper.System
                             color = range.Color,
                             Filled = false, // Circle elements DO respect Filled correctly - outline only
                             thicc = range.Thickness,
+                            onlyTargetable = true, // stop drawing once the actor dies/despawns
                         });
                     }
                 }
