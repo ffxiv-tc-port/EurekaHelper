@@ -120,6 +120,7 @@ namespace EurekaHelper.System
         private void OnFrameworkUpdate(IFramework framework)
         {
             var newNames = false;
+            var newlyClassified = false;
 
             foreach (var obj in DalamudApi.ObjectTable)
             {
@@ -136,17 +137,32 @@ namespace EurekaHelper.System
                     continue;
 
                 newNames = true;
-                AutoClassify(name);
+                if (AutoClassify(name))
+                    newlyClassified = true;
             }
 
             if (newNames)
                 SaveSeenMonsters();
+
+            // Batch the redraw: entering a zone can surface many new monsters within the same
+            // tick, and calling Splatoon.RemoveDynamicElements + AddDynamicElements once per
+            // monster (rather than once per tick) raced against itself - a later Remove could
+            // land before an earlier Add's elements were actually registered, silently dropping
+            // some of them (reported as "some aggro ranges just don't show up").
+            if (newlyClassified)
+            {
+                SaveConfig();
+                Splatoon.RemoveDynamicElements(LayerName);
+                DrawForCurrentZone();
+            }
         }
 
-        private void AutoClassify(string name)
+        // Returns true if a new entry was added (caller batches the Splatoon redraw itself -
+        // see OnFrameworkUpdate - rather than each call triggering its own Remove+Add cycle).
+        private bool AutoClassify(string name)
         {
             if (_aggroRanges.ContainsKey(name))
-                return;
+                return false;
 
             // Anything not in KnownAggroNames falls back to Visual, the documented default aggro
             // type for most Eureka mobs - and unlike Magic/Blood (no known default radius),
@@ -155,15 +171,12 @@ namespace EurekaHelper.System
             var type = KnownAggroNames.GetValueOrDefault(name, AggroType.Visual);
 
             var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type);
-            AddEntry(name, new AggroRangeConfig
+            _aggroRanges[name] = new List<AggroRangeConfig>
             {
-                Type = type,
-                Shape = shape,
-                Radius = radius,
-                ConeHalfAngleDegrees = coneHalfAngle,
-                Color = color,
-            });
+                new() { Type = type, Shape = shape, Radius = radius, ConeHalfAngleDegrees = coneHalfAngle, Color = color },
+            };
             DalamudApi.Log.Information($"[SplatoonManager] Auto-registered \"{name}\" as {type} aggro ({(type == AggroType.Visual ? "default" : "name pattern match")}{(radius <= 0f ? ", radius still needs measuring" : "")})");
+            return true;
         }
 
         public IReadOnlyCollection<string> GetSeenMonsters() => _seenMonsters;
@@ -248,8 +261,17 @@ namespace EurekaHelper.System
                 }
             }
 
-            if (elements.Count > 0)
+            if (elements.Count == 0)
+                return;
+
+            try
+            {
                 Splatoon.AddDynamicElements(LayerName, elements.ToArray(), -2); // -2 = no auto-expiry, we manage lifetime via territory change
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[SplatoonManager] AddDynamicElements failed for {elements.Count} element(s)");
+            }
         }
 
         public void ReloadConfig()
