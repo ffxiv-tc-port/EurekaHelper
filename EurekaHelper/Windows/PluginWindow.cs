@@ -1310,7 +1310,7 @@ namespace EurekaHelper.Windows
             ImGui.Separator();
 
             ImGui.SetNextItemWidth(150f);
-            var aggroTypeNames = Enum.GetNames<AggroType>();
+            var aggroTypeNames = Loc.EnumNames<AggroType>();
             var aggroTypeIndex = (int)DebugAggroType;
             if (ImGui.Combo("##DebugAggroType", ref aggroTypeIndex, aggroTypeNames, aggroTypeNames.Length))
             {
@@ -1323,7 +1323,7 @@ namespace EurekaHelper.Windows
 
             ImGui.SameLine();
             ImGui.SetNextItemWidth(100f);
-            var shapeNames = Enum.GetNames<AggroShape>();
+            var shapeNames = Loc.EnumNames<AggroShape>();
             var shapeIndex = (int)DebugAggroShape;
             if (ImGui.Combo("##DebugShape", ref shapeIndex, shapeNames, shapeNames.Length))
                 DebugAggroShape = (AggroShape)shapeIndex;
@@ -1371,7 +1371,7 @@ namespace EurekaHelper.Windows
             for (var i = 0; i < existing.Count; i++)
             {
                 var entry = existing[i];
-                ImGui.Text($"{entry.Type} - {entry.Shape} - {entry.Radius}y");
+                ImGui.Text($"{Loc.Enum(entry.Type)} - {Loc.Enum(entry.Shape)} - {entry.Radius}y");
                 ImGui.SameLine();
                 if (ImGui.SmallButton($"{Loc.Text("Delete")}##DebugEntry{i}"))
                     splatoonManager.RemoveEntry(bossName, i);
