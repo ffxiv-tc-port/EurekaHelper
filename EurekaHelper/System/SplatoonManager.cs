@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Plugin.Services;
 
 namespace EurekaHelper.System
 {
@@ -19,20 +21,37 @@ namespace EurekaHelper.System
     {
         private const string LayerName = "EurekaHelper.AggroRanges";
 
+        // Name substrings that let us auto-classify a newly-seen monster without needing manual
+        // Debug-tab confirmation - see EnsureConfigFileExists for the sourcing/reasoning behind
+        // these two categories (weather-gated "Sprite" adds -> Magic, Ashkin/undead-named
+        // night-only spawners -> Blood). Anything not matching either list is left as the
+        // default Visual aggro (not recorded - that's the common case).
+        private static readonly string[] MagicNamePatterns = { "Sprite" };
+        private static readonly string[] BloodNamePatterns =
+        {
+            "Wraith", "Specter", "Corpse", "Bhoot", "Dullahan", "Ghost", "Ghast", "Skeleton", "Zombie", "Ghoul", "Lich", "Revenant",
+        };
+
         private readonly string _configPath;
+        private readonly string _seenMonstersPath;
         private Dictionary<string, List<AggroRangeConfig>> _aggroRanges = new();
+        private HashSet<string> _seenMonsters = new();
         private bool _splatoonReady = false;
 
         public SplatoonManager()
         {
             _configPath = Path.Combine(DalamudApi.PluginInterface.GetPluginConfigDirectory(), "AggroRanges.json");
+            _seenMonstersPath = Path.Combine(DalamudApi.PluginInterface.GetPluginConfigDirectory(), "SeenMonsters.json");
             EnsureConfigFileExists();
             LoadConfig();
+            LoadSeenMonsters();
 
             ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
             Splatoon.SetOnConnect(OnSplatoonConnect);
 
             DalamudApi.ClientState.TerritoryChanged += OnTerritoryChanged;
+            if (Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
+                DalamudApi.Framework.Update += OnFrameworkUpdate;
         }
 
         private void OnSplatoonConnect()
@@ -44,9 +63,90 @@ namespace EurekaHelper.System
         private void OnTerritoryChanged(ushort territoryId)
         {
             Splatoon.RemoveDynamicElements(LayerName);
+
             if (Utils.IsPlayerInEurekaZone(territoryId))
+            {
+                DalamudApi.Framework.Update += OnFrameworkUpdate;
                 DrawForCurrentZone();
+            }
+            else
+            {
+                DalamudApi.Framework.Update -= OnFrameworkUpdate;
+            }
         }
+
+        // Passively records every battle NM/mob name encountered in the zone (so you can see
+        // coverage grow over a play session without manually locking each one), and
+        // auto-registers an aggro-type entry for names matching a known pattern (see
+        // MagicNamePatterns/BloodNamePatterns) - still radius 0 (undrawn) until measured via the
+        // Debug tab, same as the hand-seeded entries.
+        private void OnFrameworkUpdate(IFramework framework)
+        {
+            var newNames = false;
+
+            foreach (var obj in DalamudApi.ObjectTable)
+            {
+                if (obj is not IBattleNpc battleNpc)
+                    continue;
+
+                var name = battleNpc.Name.TextValue;
+                if (string.IsNullOrWhiteSpace(name) || !_seenMonsters.Add(name))
+                    continue;
+
+                newNames = true;
+                AutoClassify(name);
+            }
+
+            if (newNames)
+                SaveSeenMonsters();
+        }
+
+        private void AutoClassify(string name)
+        {
+            AggroType? type =
+                MagicNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Magic :
+                BloodNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Blood :
+                null;
+
+            if (type is null || _aggroRanges.ContainsKey(name))
+                return;
+
+            var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type.Value);
+            AddEntry(name, new AggroRangeConfig
+            {
+                Type = type.Value,
+                Shape = shape,
+                Radius = radius,
+                ConeHalfAngleDegrees = coneHalfAngle,
+                Color = color,
+            });
+            DalamudApi.Log.Information($"[SplatoonManager] Auto-registered \"{name}\" as {type.Value} aggro (name pattern match, radius still needs measuring)");
+        }
+
+        public IReadOnlyCollection<string> GetSeenMonsters() => _seenMonsters;
+
+        private void LoadSeenMonsters()
+        {
+            try
+            {
+                if (!File.Exists(_seenMonstersPath))
+                {
+                    _seenMonsters = new();
+                    return;
+                }
+
+                var json = File.ReadAllText(_seenMonstersPath);
+                _seenMonsters = JsonConvert.DeserializeObject<HashSet<string>>(json) ?? new();
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"Failed to load seen-monsters list from {_seenMonstersPath}");
+                _seenMonsters = new();
+            }
+        }
+
+        private void SaveSeenMonsters() =>
+            File.WriteAllText(_seenMonstersPath, JsonConvert.SerializeObject(_seenMonsters, Formatting.Indented));
 
         // Redraws every configured NM's aggro ranges for the zone we're currently in. Safe to
         // call repeatedly (e.g. after reloading the config file); Splatoon replaces elements
@@ -196,6 +296,7 @@ namespace EurekaHelper.System
         public void Dispose()
         {
             DalamudApi.ClientState.TerritoryChanged -= OnTerritoryChanged;
+            DalamudApi.Framework.Update -= OnFrameworkUpdate;
             Splatoon.RemoveDynamicElements(LayerName);
             ECommonsMain.Dispose();
         }

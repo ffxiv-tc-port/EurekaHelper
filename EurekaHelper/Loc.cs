@@ -1045,6 +1045,12 @@ internal static class Loc
 		["Outline Thickness"] = "外框粗細",
 		["Aggro range data file:"] = "仇恨範圍資料檔：",
 		["Reload aggro range data"] = "重新載入仇恨範圍資料",
+		["Seen Monsters"] = "已發現的怪物",
+		["Every mob name encountered in Eureka this session. Names matching a known pattern (e.g. \"Sprite\" -> Magic, undead names -> Blood) get auto-registered with radius 0 - lock them and measure when you get the chance. Everything else defaults to Visual and isn't tracked here individually."] = "本次遊玩期間在優雷卡遇到的所有怪物名稱。符合已知規則的名稱（例如「Sprite」→魔法、不死系名稱→血親）會自動登記半徑 0，有空時鎖定實測填入即可。其餘的一律預設為視覺感知，不會逐一記錄。",
+		["{0} unique names seen."] = "共發現 {0} 個不重複名稱。",
+		["Name"] = "名稱",
+		["Registered As"] = "已登記為",
+		["Visual (default)"] = "視覺（預設）",
 		["Re-reads AggroRanges.json after you've edited it, without needing to restart the plugin."] = "修改 AggroRanges.json 後重新讀取，不需要重啟插件。"
 	};
 

@@ -1282,6 +1282,42 @@ namespace EurekaHelper.Windows
             ImGui.TextWrapped(Loc.Text("Lock a target in-game, tune the shape/radius/color below, and it'll draw live via Splatoon (if connected) so you can compare against the actual aggro range. Hit \"Add to AggroRanges.json\" once it matches."));
             ImGui.Separator();
 
+            var splatoonManager = EurekaHelper.Plugin.SplatoonManager;
+            if (splatoonManager == null)
+            {
+                Utils.CenterText(Loc.Text("Splatoon isn't connected."));
+                return;
+            }
+
+            if (ImGui.CollapsingHeader(Loc.Text("Seen Monsters")))
+            {
+                ImGui.TextWrapped(Loc.Text("Every mob name encountered in Eureka this session. Names matching a known pattern (e.g. \"Sprite\" -> Magic, undead names -> Blood) get auto-registered with radius 0 - lock them and measure when you get the chance. Everything else defaults to Visual and isn't tracked here individually."));
+
+                var seenMonsters = splatoonManager.GetSeenMonsters().OrderBy(x => x).ToList();
+                ImGui.Text(Loc.Format("{0} unique names seen.", seenMonsters.Count));
+
+                if (ImGui.BeginTable("SeenMonstersTable", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY, new Vector2(0, 200)))
+                {
+                    ImGui.TableSetupColumn(Loc.Text("Name"));
+                    ImGui.TableSetupColumn(Loc.Text("Registered As"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableHeadersRow();
+
+                    foreach (var name in seenMonsters)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.Text(name);
+
+                        ImGui.TableNextColumn();
+                        var seenEntries = splatoonManager.GetEntriesFor(name);
+                        ImGui.Text(seenEntries.Count > 0 ? string.Join(", ", seenEntries.Select(e => Loc.Enum(e.Type))) : Loc.Text("Visual (default)"));
+                    }
+
+                    ImGui.EndTable();
+                }
+            }
+
+            ImGui.Separator();
+
             var target = DalamudApi.TargetManager.Target;
             if (target == null)
             {
@@ -1350,13 +1386,6 @@ namespace EurekaHelper.Windows
             ImGui.SetNextItemWidth(200f);
             ImGui.InputTextWithHint("##DebugBossNameOverride", Loc.Text("Override name (optional)"), ref DebugBossNameOverride, 64);
             Utils.SetTooltip(Loc.Text("Leave empty to key the entry by the locked target's exact name."));
-
-            var splatoonManager = EurekaHelper.Plugin.SplatoonManager;
-            if (splatoonManager == null)
-            {
-                Utils.CenterText(Loc.Text("Splatoon isn't connected."));
-                return;
-            }
 
             var bossName = string.IsNullOrWhiteSpace(DebugBossNameOverride) ? target.Name.TextValue : DebugBossNameOverride;
 
