@@ -133,10 +133,20 @@ namespace EurekaHelper.System
                     continue;
 
                 var name = battleNpc.Name.TextValue;
-                if (string.IsNullOrWhiteSpace(name) || !_seenMonsters.Add(name))
+                if (string.IsNullOrWhiteSpace(name))
                     continue;
 
-                newNames = true;
+                // Logging "seen" and actually having an AggroRanges entry are separate concerns -
+                // deliberately NOT gating classification on _seenMonsters.Add() here. A name
+                // recorded as seen under an older build (before Visual got auto-registered, or if
+                // an entry was later deleted via the Debug tab) would otherwise be permanently
+                // stuck with no entry forever, since HashSet.Add() only returns true once per
+                // name for the life of the persisted SeenMonsters.json. AutoClassify already
+                // no-ops cheaply via _aggroRanges.ContainsKey, so calling it unconditionally for
+                // every visible monster every tick is safe and self-heals that case.
+                if (_seenMonsters.Add(name))
+                    newNames = true;
+
                 if (AutoClassify(name))
                     newlyClassified = true;
             }
