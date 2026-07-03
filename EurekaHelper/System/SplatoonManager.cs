@@ -132,11 +132,13 @@ namespace EurekaHelper.System
                 if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
                     continue;
 
-                // Skip dead bodies (corpse still exists briefly before despawning) and anything
-                // currently untargetable - the latter also happens to catch short-lived, nameless
-                // skill-effect actors (e.g. attack telegraphs implemented as a transient BattleNpc)
-                // that were getting scanned, drawn, then vanishing a few seconds later.
-                if (battleNpc.IsDead || !battleNpc.IsTargetable)
+                // Skip dead bodies (corpse still exists briefly before despawning). NOTE: an
+                // earlier version of this also skipped !IsTargetable to catch transient nameless
+                // skill-effect actors, but IsTargetable can be flaky (LoS-dependent) for regular
+                // idle mobs too and ended up filtering out everything - removed. The Splatoon
+                // Element itself still sets onlyTargetable=true (see DrawForCurrentZone), which
+                // covers "stop drawing once dead" without needing this scan-time check too.
+                if (battleNpc.IsDead)
                     continue;
 
                 var name = battleNpc.Name.TextValue;
