@@ -204,23 +204,41 @@ namespace EurekaHelper.System
                     if (range.Radius <= 0f)
                         continue; // radius not measured yet - see AggroRanges.json / Debug tab
 
-                    // NOTE: Splatoon's ImGui-Legacy renderer hardcodes Cone elements to always
-                    // draw filled, ignoring Element.Filled entirely (confirmed in Splatoon's own
-                    // source, Splatoon/RenderEngines/ImGuiLegacy/ImGuiLegacyRenderer.cs AddCone:
-                    // `new DisplayObjectCone(..., e.color, true)` - "true" is hardcoded, not
-                    // e.Filled). Circle elements DO respect Filled correctly. Until that's fixed
-                    // upstream (or the user's on the DirectX11 render engine, unverified), always
-                    // draw a circle outline instead of a cone/wedge - loses directionality for
-                    // "Visual"-type entries but reliably never renders as a solid fill.
-                    elements.Add(new Element(ElementType.CircleRelativeToActorPosition)
+                    if (range.Shape == AggroShape.Cone)
                     {
-                        refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
-                        refActorName = bossName,
-                        radius = range.Radius,
-                        color = range.Color,
-                        Filled = false, // outline only, never a filled disc
-                        thicc = range.Thickness,
-                    });
+                        // NOTE: Splatoon's ImGui-Legacy renderer hardcodes Cone elements to always
+                        // draw filled, ignoring Element.Filled entirely (confirmed in Splatoon's
+                        // own source, Splatoon/RenderEngines/ImGuiLegacy/ImGuiLegacyRenderer.cs
+                        // AddCone: `new DisplayObjectCone(..., e.color, true)` - "true" is
+                        // hardcoded, not e.Filled). Rather than fight that, embrace it: draw the
+                        // cone filled but with a low-alpha color (see AggroTypeDefaults - Visual's
+                        // default color has ~30% alpha) so it reads as a light directional tint
+                        // instead of an opaque wedge.
+                        elements.Add(new Element(ElementType.ConeRelativeToObjectPosition)
+                        {
+                            refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
+                            refActorName = bossName,
+                            radius = range.Radius,
+                            coneAngleMin = -range.ConeHalfAngleDegrees,
+                            coneAngleMax = range.ConeHalfAngleDegrees,
+                            includeRotation = true,
+                            color = range.Color,
+                            Filled = true,
+                            thicc = range.Thickness,
+                        });
+                    }
+                    else
+                    {
+                        elements.Add(new Element(ElementType.CircleRelativeToActorPosition)
+                        {
+                            refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
+                            refActorName = bossName,
+                            radius = range.Radius,
+                            color = range.Color,
+                            Filled = false, // Circle elements DO respect Filled correctly - outline only
+                            thicc = range.Thickness,
+                        });
+                    }
                 }
             }
 
@@ -289,7 +307,7 @@ namespace EurekaHelper.System
                 ["EXAMPLE - 沙巴頓仙人掌怪"] = new()
                 {
                     new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 10f, Color = 0xFF00FFFFu },
-                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0xFF0000FFu },
+                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0x500000FFu },
                 },
             };
 
@@ -364,7 +382,7 @@ namespace EurekaHelper.System
         public static (AggroShape Shape, uint Color, float Radius, int ConeHalfAngleDegrees) Get(AggroType type) => type switch
         {
             AggroType.Aural => (AggroShape.Circle, 0xFF00FFFFu, 10f, 60),
-            AggroType.Visual => (AggroShape.Cone, 0xFF0000FFu, 15f, 45),
+            AggroType.Visual => (AggroShape.Cone, 0x500000FFu, 15f, 45), // ~30% alpha - cones always draw filled (Splatoon quirk), so keep it light
             AggroType.Magic => (AggroShape.Circle, 0xFFFF7E27u, 0f, 60),
             AggroType.Blood => (AggroShape.Circle, 0xFFB000FFu, 0f, 60),
             _ => (AggroShape.Circle, 0xFFFFFFFFu, 0f, 60),

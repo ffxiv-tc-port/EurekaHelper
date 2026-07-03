@@ -1375,7 +1375,7 @@ namespace EurekaHelper.Windows
                 ImGui.SetNextItemWidth(150f);
                 ImGui.DragInt(Loc.Text("Cone Half-Angle"), ref DebugConeHalfAngle, 1f, 1, 180);
                 ImGui.TextColored(new Vector4(0.9f, 0.6f, 0.2f, 1f),
-                    Loc.Text("Note: Splatoon currently always draws cones filled (a rendering bug on its end), so this is drawn as a circle outline for now regardless of the angle set here."));
+                    Loc.Text("Note: Splatoon always draws cones filled (a quirk on its end, not something we can toggle off), so keep the color's alpha low or it'll be an eyesore."));
             }
 
             ImGui.SetNextItemWidth(150f);
