@@ -109,6 +109,15 @@ namespace EurekaHelper
         public PayloadOptions PayloadOptions { get; set; } = PayloadOptions.ShoutToChat;
 
         /*
+         * Splatoon Configurations
+         */
+
+        // Draws NM aggro-detection ranges via Splatoon IPC. Off by default: requires Splatoon
+        // installed, and the aggro range data (System/SplatoonManager.cs AggroRanges.json) is
+        // unverified/empty until someone fills it in - see EurekaHelper/System/SplatoonManager.cs.
+        public bool EnableSplatoonAggroRanges = false;
+
+        /*
          * Server ID Configurations
          */
         public bool DisplayServerId = false;

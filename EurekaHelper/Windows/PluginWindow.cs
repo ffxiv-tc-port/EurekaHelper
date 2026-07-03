@@ -1122,7 +1122,32 @@ namespace EurekaHelper.Windows
                 Loc.Text("This option can be enabled to use the chat sound effects instead of the other sound effects.\nThis option is active for ALL sound effects and will not overwrite your previous selections, however you will need to reset the sound effects."));
             ImGui.NextColumn();
 
+            var enableSplatoon = EurekaHelper.Config.EnableSplatoonAggroRanges;
+            if (ImGui.Checkbox(Loc.Text("Show NM Aggro Ranges (Splatoon)"), ref enableSplatoon))
+            {
+                EurekaHelper.Config.EnableSplatoonAggroRanges = enableSplatoon;
+                save = true;
+
+                if (enableSplatoon)
+                    EurekaHelper.Plugin.SplatoonManager = new();
+                else
+                    EurekaHelper.Plugin.SplatoonManager?.Dispose();
+            }
+            Utils.SetTooltip(Loc.Text("Requires the Splatoon plugin. Draws each NM's aural/visual/magic/blood aggro range as a circle/cone.\nEXPERIMENTAL: aggro range data is unverified/incomplete - see AggroRanges.json in the plugin config folder."));
+            ImGui.NextColumn();
+
             ImGui.Columns(1);
+
+            if (EurekaHelper.Config.EnableSplatoonAggroRanges && EurekaHelper.Plugin.SplatoonManager != null)
+            {
+                ImGui.Text(Loc.Text("Aggro range data file:"));
+                ImGui.SameLine();
+                ImGui.TextWrapped(EurekaHelper.Plugin.SplatoonManager.GetConfigPath());
+                if (ImGui.Button(Loc.Text("Reload aggro range data")))
+                    EurekaHelper.Plugin.SplatoonManager.ReloadConfig();
+                Utils.SetTooltip(Loc.Text("Re-reads AggroRanges.json after you've edited it, without needing to restart the plugin."));
+            }
+
             if (ImGui.CollapsingHeader(Loc.Text("Custom Messages")))
             {
                 ImGui.TextWrapped(Loc.Text("** HOW TO USE **" +

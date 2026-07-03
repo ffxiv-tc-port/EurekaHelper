@@ -30,6 +30,7 @@ namespace EurekaHelper;
         internal readonly ElementalManager ElementalManager;
         internal readonly InventoryManager InventoryManager;
         internal readonly AlarmManager AlarmManager;
+        internal SplatoonManager SplatoonManager;
 
         public EurekaHelper(IDalamudPluginInterface pluginInterface)
         {
@@ -46,6 +47,9 @@ namespace EurekaHelper;
             ElementalManager = new();
             InventoryManager = new();
             AlarmManager = new();
+
+            if (Config.EnableSplatoonAggroRanges)
+                SplatoonManager = new();
 
             PluginWindow = new(this);
             RelicWindow = new(this);
@@ -248,6 +252,7 @@ namespace EurekaHelper;
             ElementalManager.Dispose();
             InventoryManager.Dispose();
             AlarmManager.Dispose();
+            SplatoonManager?.Dispose();
             PluginWindow.GetConnection().Dispose();
             DalamudApi.PluginInterface.RemoveChatLinkHandler();
             DalamudApi.ClientState.Login -= OnLogin;
