@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 
@@ -122,7 +123,10 @@ namespace EurekaHelper.System
 
             foreach (var obj in DalamudApi.ObjectTable)
             {
-                if (obj is not IBattleNpc battleNpc)
+                // Only real monsters - IBattleNpc also matches players' own pets/chocobo
+                // companions (BattleNpcKind Pet/Chocobo), which aren't Eureka mobs and shouldn't
+                // clutter this list.
+                if (obj is not IBattleNpc battleNpc || battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy)
                     continue;
 
                 var name = battleNpc.Name.TextValue;
