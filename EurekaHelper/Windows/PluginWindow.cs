@@ -80,7 +80,7 @@ namespace EurekaHelper.Windows
 
         private AggroType DebugAggroType = AggroType.Aural;
         private AggroShape DebugAggroShape = AggroShape.Circle;
-        private float DebugRadius = 12f;
+        private float DebugRadius = 10f;
         private int DebugConeHalfAngle = 60;
         private Vector4 DebugColor = new(1f, 1f, 0f, 1f);
         private float DebugThickness = 2f;
@@ -1316,9 +1316,11 @@ namespace EurekaHelper.Windows
             if (ImGui.Combo("##DebugAggroType", ref aggroTypeIndex, aggroTypeNames, aggroTypeNames.Length))
             {
                 DebugAggroType = (AggroType)aggroTypeIndex;
-                var (shape, color) = AggroTypeDefaults.Get(DebugAggroType);
+                var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(DebugAggroType);
                 DebugAggroShape = shape;
                 DebugColor = ImGui.ColorConvertU32ToFloat4(color);
+                DebugRadius = radius;
+                DebugConeHalfAngle = coneHalfAngle;
             }
             Utils.SetTooltip(Loc.Text("Aggro type (just a label + starting shape/color - freely editable below)"));
 

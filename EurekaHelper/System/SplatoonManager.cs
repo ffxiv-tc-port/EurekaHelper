@@ -157,8 +157,8 @@ namespace EurekaHelper.System
             {
                 ["EXAMPLE - Sabotender Corrido"] = new()
                 {
-                    new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 12f, Color = 0xFF00FFFFu },
-                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 60, Color = 0xFF0000FFu },
+                    new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 10f, Color = 0xFF00FFFFu },
+                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0xFF0000FFu },
                 },
 
                 // Weather-gated "Sprite" adds -> Magic aggro (aggros on nearby spell cast)
@@ -228,15 +228,18 @@ namespace EurekaHelper.System
 
     public static class AggroTypeDefaults
     {
-        // Just sane starting points so the Debug tab isn't blank when you switch type -
-        // radius/color are always freely editable/pickable before committing an entry.
-        public static (AggroShape Shape, uint Color) Get(AggroType type) => type switch
+        // Visual = 15y, 90 degree forward cone (45 either side of facing) - and Aural = 10y
+        // circle - are the user-specified defaults for those two types. Magic/Blood have no
+        // known default radius (no public source gives one), so they stay at 0 - drawn as
+        // nothing until measured via the Debug tab. All of these remain freely editable before
+        // committing an entry.
+        public static (AggroShape Shape, uint Color, float Radius, int ConeHalfAngleDegrees) Get(AggroType type) => type switch
         {
-            AggroType.Aural => (AggroShape.Circle, 0xFF00FFFFu),
-            AggroType.Visual => (AggroShape.Cone, 0xFF0000FFu),
-            AggroType.Magic => (AggroShape.Circle, 0xFFFF7E27u),
-            AggroType.Blood => (AggroShape.Circle, 0xFFB000FFu),
-            _ => (AggroShape.Circle, 0xFFFFFFFFu),
+            AggroType.Aural => (AggroShape.Circle, 0xFF00FFFFu, 10f, 60),
+            AggroType.Visual => (AggroShape.Cone, 0xFF0000FFu, 15f, 45),
+            AggroType.Magic => (AggroShape.Circle, 0xFFFF7E27u, 0f, 60),
+            AggroType.Blood => (AggroShape.Circle, 0xFFB000FFu, 0f, 60),
+            _ => (AggroShape.Circle, 0xFFFFFFFFu, 0f, 60),
         };
     }
 }
