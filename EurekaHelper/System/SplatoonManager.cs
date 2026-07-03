@@ -64,6 +64,9 @@ namespace EurekaHelper.System
             {
                 foreach (var range in ranges)
                 {
+                    if (range.Radius <= 0f)
+                        continue; // radius not measured yet - see AggroRanges.json / Debug tab
+
                     // NOTE: Splatoon's ImGui-Legacy renderer hardcodes Cone elements to always
                     // draw filled, ignoring Element.Filled entirely (confirmed in Splatoon's own
                     // source, Splatoon/RenderEngines/ImGuiLegacy/ImGuiLegacyRenderer.cs AddCone:
@@ -140,17 +143,39 @@ namespace EurekaHelper.System
             if (File.Exists(_configPath))
                 return;
 
-            // Example entry only - NOT verified real aggro data, just illustrates the file shape.
-            var example = new Dictionary<string, List<AggroRangeConfig>>
+            // Seed data. Every Eureka mob defaults to Visual (sight) aggro if it's not listed
+            // here at all - that's the common case and not worth an entry per mob. The handful
+            // of named spawner mobs below are the well-documented exceptions to that default
+            // (see community wiki consensus: "Sprites" that only spawn in specific weather use
+            // Magic aggro; Ashkin/undead-named mobs that only spawn at night use Blood/low-HP
+            // aggro), cross-checked against this repo's own EurekaFate data (SpawnByRequiredWeather
+            // / SpawnByRequiredNight flags in XIV/Zones/*.cs already flag exactly these mobs).
+            // Radius is intentionally 0 (drawn as nothing, see DrawForCurrentZone) - no public
+            // source gives per-mob aggro *distance*, only aggro *type*. Use the Debug tab to lock
+            // one in-game and measure/tune the real radius, which'll overwrite the 0 here.
+            var seed = new Dictionary<string, List<AggroRangeConfig>>
             {
                 ["EXAMPLE - Sabotender Corrido"] = new()
                 {
                     new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 12f, Color = 0xFF00FFFFu },
                     new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 60, Color = 0xFF0000FFu },
                 },
+
+                // Weather-gated "Sprite" adds -> Magic aggro (aggros on nearby spell cast)
+                ["Typhoon Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } },   // Anemos, spawns Jahannam, requires Gales
+                ["Snowmelt Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } },  // Pagos, spawns Anapos, requires Fog
+                ["Thunderstorm Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } }, // Pyros, spawns Flauros, requires Thunder
+
+                // Night-only + undead-named spawners -> Blood/low-HP aggro (ashkin convention)
+                ["Val Specter"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },      // Anemos, spawns Lamashtu
+                ["Shadow Wraith"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },    // Anemos, spawns Pazuzu
+                ["Duskfall Dullahan"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } }, // Anemos, spawns The White Rider
+                ["Hydatos Wraith"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },   // Hydatos, spawns King Goldemar
+                ["Val Corpse"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },       // Pagos, spawns Louhi
+                ["Pyros Bhoot"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },      // Pyros, spawns Leucosia
             };
 
-            File.WriteAllText(_configPath, JsonConvert.SerializeObject(example, Formatting.Indented));
+            File.WriteAllText(_configPath, JsonConvert.SerializeObject(seed, Formatting.Indented));
         }
 
         private void LoadConfig()
