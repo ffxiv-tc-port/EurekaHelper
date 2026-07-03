@@ -91,19 +91,56 @@ namespace EurekaHelper.System
 
         public string GetConfigPath() => _configPath;
 
+        public IReadOnlyDictionary<string, List<AggroRangeConfig>> GetAllEntries() => _aggroRanges;
+
+        public IReadOnlyList<AggroRangeConfig> GetEntriesFor(string bossName) =>
+            _aggroRanges.TryGetValue(bossName, out var list) ? list : Array.Empty<AggroRangeConfig>();
+
+        // Used by the Debug tab: lock a target in-game, tune shape/radius/color while watching
+        // the live Splatoon overlay, then commit it here once it looks right.
+        public void AddEntry(string bossName, AggroRangeConfig config)
+        {
+            if (!_aggroRanges.TryGetValue(bossName, out var list))
+            {
+                list = new List<AggroRangeConfig>();
+                _aggroRanges[bossName] = list;
+            }
+
+            list.Add(config);
+            SaveConfig();
+            Splatoon.RemoveDynamicElements(LayerName);
+            DrawForCurrentZone();
+        }
+
+        public void RemoveEntry(string bossName, int index)
+        {
+            if (!_aggroRanges.TryGetValue(bossName, out var list) || index < 0 || index >= list.Count)
+                return;
+
+            list.RemoveAt(index);
+            if (list.Count == 0)
+                _aggroRanges.Remove(bossName);
+
+            SaveConfig();
+            Splatoon.RemoveDynamicElements(LayerName);
+            DrawForCurrentZone();
+        }
+
+        private void SaveConfig() =>
+            File.WriteAllText(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
+
         private void EnsureConfigFileExists()
         {
             if (File.Exists(_configPath))
                 return;
 
-            // Example entry only - NOT verified real aggro data. See server/README.md-style caveat:
-            // this radius/type is a placeholder until someone confirms real values in-game.
+            // Example entry only - NOT verified real aggro data, just illustrates the file shape.
             var example = new Dictionary<string, List<AggroRangeConfig>>
             {
                 ["EXAMPLE - Sabotender Corrido"] = new()
                 {
-                    new AggroRangeConfig { Shape = AggroShape.Circle, Radius = 12f, Color = 0xFF00FFFF },   // aural (yellow), UNVERIFIED
-                    new AggroRangeConfig { Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 60, Color = 0xFF0000FF }, // visual (red), UNVERIFIED
+                    new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 12f, Color = 0xFF00FFFFu },
+                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 60, Color = 0xFF0000FFu },
                 },
             };
 
@@ -139,11 +176,35 @@ namespace EurekaHelper.System
         Cone,
     }
 
+    public enum AggroType
+    {
+        Aural,
+        Visual,
+        Magic,
+        Blood,
+        Other,
+    }
+
     public class AggroRangeConfig
     {
+        public AggroType Type { get; set; } = AggroType.Aural;
         public AggroShape Shape { get; set; } = AggroShape.Circle;
         public float Radius { get; set; }
         public int ConeHalfAngleDegrees { get; set; } = 60;
         public uint Color { get; set; } = 0xFFFFFFFF;
+    }
+
+    public static class AggroTypeDefaults
+    {
+        // Just sane starting points so the Debug tab isn't blank when you switch type -
+        // radius/color are always freely editable/pickable before committing an entry.
+        public static (AggroShape Shape, uint Color) Get(AggroType type) => type switch
+        {
+            AggroType.Aural => (AggroShape.Circle, 0xFF00FFFFu),
+            AggroType.Visual => (AggroShape.Cone, 0xFF0000FFu),
+            AggroType.Magic => (AggroShape.Circle, 0xFFFF7E27u),
+            AggroType.Blood => (AggroShape.Circle, 0xFFB000FFu),
+            _ => (AggroShape.Circle, 0xFFFFFFFFu),
+        };
     }
 }

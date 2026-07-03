@@ -66,11 +66,24 @@ namespace EurekaHelper.Windows
                     DrawAboutTab();
                     ImGui.EndTabItem();
                 }
+
+                if (EurekaHelper.Config.EnableSplatoonAggroRanges && ImGui.BeginTabItem(Loc.Text("Debug")))
+                {
+                    DrawDebugTab();
+                    ImGui.EndTabItem();
+                }
             }
         }
 
         public string TrackerCode = string.Empty;
         public string TrackerPassword = string.Empty;
+
+        private AggroType DebugAggroType = AggroType.Aural;
+        private AggroShape DebugAggroShape = AggroShape.Circle;
+        private float DebugRadius = 12f;
+        private int DebugConeHalfAngle = 60;
+        private Vector4 DebugColor = new(1f, 1f, 0f, 1f);
+        private string DebugBossNameOverride = string.Empty;
 
         public async void DrawTrackerTab()
         {
@@ -1261,6 +1274,108 @@ namespace EurekaHelper.Windows
             ImGui.Text(Loc.Text("electr0sheep for EurekaTrackerAutoPopper"));
             ImGui.Text(Loc.Text("Bedo9041 for EurekaPlugin"));
             ImGui.Text(Loc.Text("KangasZ for EurekaHelper contributions"));
+        }
+
+        private void DrawDebugTab()
+        {
+            ImGui.TextWrapped(Loc.Text("Lock a target in-game, tune the shape/radius/color below, and it'll draw live via Splatoon (if connected) so you can compare against the actual aggro range. Hit \"Add to AggroRanges.json\" once it matches."));
+            ImGui.Separator();
+
+            var target = DalamudApi.TargetManager.Target;
+            if (target == null)
+            {
+                Utils.CenterText(Loc.Text("No target locked."));
+                return;
+            }
+
+            ImGui.Text(Loc.Text("Name:"));
+            ImGui.SameLine();
+            ImGui.Text(target.Name.TextValue);
+
+            ImGui.Text(Loc.Text("Data ID:"));
+            ImGui.SameLine();
+            ImGui.Text(target.DataId.ToString());
+
+            ImGui.Text(Loc.Text("Kind:"));
+            ImGui.SameLine();
+            ImGui.Text(target.ObjectKind.ToString());
+
+            var distance = DalamudApi.ClientState.LocalPlayer != null
+                ? Vector3.Distance(DalamudApi.ClientState.LocalPlayer.Position, target.Position).ToString("0.0")
+                : "?";
+            ImGui.Text(Loc.Text("Distance:"));
+            ImGui.SameLine();
+            ImGui.Text(distance);
+
+            ImGui.Separator();
+
+            ImGui.SetNextItemWidth(150f);
+            var aggroTypeNames = Enum.GetNames<AggroType>();
+            var aggroTypeIndex = (int)DebugAggroType;
+            if (ImGui.Combo("##DebugAggroType", ref aggroTypeIndex, aggroTypeNames, aggroTypeNames.Length))
+            {
+                DebugAggroType = (AggroType)aggroTypeIndex;
+                var (shape, color) = AggroTypeDefaults.Get(DebugAggroType);
+                DebugAggroShape = shape;
+                DebugColor = ImGui.ColorConvertU32ToFloat4(color);
+            }
+            Utils.SetTooltip(Loc.Text("Aggro type (just a label + starting shape/color - freely editable below)"));
+
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(100f);
+            var shapeNames = Enum.GetNames<AggroShape>();
+            var shapeIndex = (int)DebugAggroShape;
+            if (ImGui.Combo("##DebugShape", ref shapeIndex, shapeNames, shapeNames.Length))
+                DebugAggroShape = (AggroShape)shapeIndex;
+
+            ImGui.SetNextItemWidth(150f);
+            ImGui.DragFloat(Loc.Text("Radius"), ref DebugRadius, 0.5f, 0f, 60f);
+
+            if (DebugAggroShape == AggroShape.Cone)
+            {
+                ImGui.SetNextItemWidth(150f);
+                ImGui.DragInt(Loc.Text("Cone Half-Angle"), ref DebugConeHalfAngle, 1f, 1, 180);
+            }
+
+            ImGui.ColorEdit4(Loc.Text("Color"), ref DebugColor);
+
+            ImGui.SetNextItemWidth(200f);
+            ImGui.InputTextWithHint("##DebugBossNameOverride", Loc.Text("Override name (optional)"), ref DebugBossNameOverride, 64);
+            Utils.SetTooltip(Loc.Text("Leave empty to key the entry by the locked target's exact name."));
+
+            var splatoonManager = EurekaHelper.Plugin.SplatoonManager;
+            if (splatoonManager == null)
+            {
+                Utils.CenterText(Loc.Text("Splatoon isn't connected."));
+                return;
+            }
+
+            var bossName = string.IsNullOrWhiteSpace(DebugBossNameOverride) ? target.Name.TextValue : DebugBossNameOverride;
+
+            if (ImGui.Button(Loc.Text("Add to AggroRanges.json")))
+            {
+                splatoonManager.AddEntry(bossName, new AggroRangeConfig
+                {
+                    Type = DebugAggroType,
+                    Shape = DebugAggroShape,
+                    Radius = DebugRadius,
+                    ConeHalfAngleDegrees = DebugConeHalfAngle,
+                    Color = ImGui.ColorConvertFloat4ToU32(DebugColor),
+                });
+            }
+
+            ImGui.Separator();
+            ImGui.Text(Loc.Format("Existing entries for \"{0}\":", bossName));
+
+            var existing = splatoonManager.GetEntriesFor(bossName);
+            for (var i = 0; i < existing.Count; i++)
+            {
+                var entry = existing[i];
+                ImGui.Text($"{entry.Type} - {entry.Shape} - {entry.Radius}y");
+                ImGui.SameLine();
+                if (ImGui.SmallButton($"{Loc.Text("Delete")}##DebugEntry{i}"))
+                    splatoonManager.RemoveEntry(bossName, i);
+            }
         }
 
         public static EurekaConnectionManager GetConnection() => Connection;
