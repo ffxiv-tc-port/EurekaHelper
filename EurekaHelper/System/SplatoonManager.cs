@@ -103,24 +103,28 @@ namespace EurekaHelper.System
 
         private void AutoClassify(string name)
         {
-            AggroType? type =
-                MagicNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Magic :
-                BloodNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Blood :
-                null;
-
-            if (type is null || _aggroRanges.ContainsKey(name))
+            if (_aggroRanges.ContainsKey(name))
                 return;
 
-            var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type.Value);
+            // Anything not matching a known exception pattern falls back to Visual, the
+            // documented default aggro type for most Eureka mobs - and unlike Magic/Blood (no
+            // known default radius), Visual/Aural DO have user-specified baseline ranges, so
+            // this is drawn immediately rather than sitting at radius 0 until measured.
+            var type =
+                MagicNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Magic :
+                BloodNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Blood :
+                AggroType.Visual;
+
+            var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type);
             AddEntry(name, new AggroRangeConfig
             {
-                Type = type.Value,
+                Type = type,
                 Shape = shape,
                 Radius = radius,
                 ConeHalfAngleDegrees = coneHalfAngle,
                 Color = color,
             });
-            DalamudApi.Log.Information($"[SplatoonManager] Auto-registered \"{name}\" as {type.Value} aggro (name pattern match, radius still needs measuring)");
+            DalamudApi.Log.Information($"[SplatoonManager] Auto-registered \"{name}\" as {type} aggro ({(type == AggroType.Visual ? "default" : "name pattern match")}{(radius <= 0f ? ", radius still needs measuring" : "")})");
         }
 
         public IReadOnlyCollection<string> GetSeenMonsters() => _seenMonsters;
