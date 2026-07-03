@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 
@@ -147,12 +146,13 @@ namespace EurekaHelper.System
                     continue;
                 battleNpcs++;
 
-                // Only real monsters - IBattleNpc also matches players' own pets/chocobo/summons
-                // (Scholar fairy, Summoner Egi/Demi-summon, Machinist turret, etc.), which aren't
-                // Eureka mobs and shouldn't clutter this list. BattleNpcKind alone isn't reliable
-                // for every summon type, so also exclude anything with a non-zero OwnerId (i.e.
-                // belongs to a player) as a second check.
-                if (battleNpc.BattleNpcKind != BattleNpcSubKind.Enemy || battleNpc.OwnerId != 0)
+                // NOTE: BattleNpcKind != Enemy previously filtered out ALL 18/18 BattleNpc found
+                // in testing (diagnostic showed 18 BattleNpc -> 0 passing) - this build's older
+                // Dalamud API apparently doesn't populate/match BattleNpcKind the way current
+                // Dalamud docs describe, or its Enemy value differs on this API level. Dropped
+                // that check entirely; OwnerId == 0 alone is still enough to exclude players' own
+                // pets/chocobo/summons (which always have an owner), without needing BattleNpcKind.
+                if (battleNpc.OwnerId != 0)
                     continue;
                 enemyKind++;
 
