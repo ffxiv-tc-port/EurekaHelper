@@ -83,6 +83,7 @@ namespace EurekaHelper.Windows
         private float DebugRadius = 12f;
         private int DebugConeHalfAngle = 60;
         private Vector4 DebugColor = new(1f, 1f, 0f, 1f);
+        private float DebugThickness = 2f;
         private string DebugBossNameOverride = string.Empty;
 
         public async void DrawTrackerTab()
@@ -1335,7 +1336,12 @@ namespace EurekaHelper.Windows
             {
                 ImGui.SetNextItemWidth(150f);
                 ImGui.DragInt(Loc.Text("Cone Half-Angle"), ref DebugConeHalfAngle, 1f, 1, 180);
+                ImGui.TextColored(new Vector4(0.9f, 0.6f, 0.2f, 1f),
+                    Loc.Text("Note: Splatoon currently always draws cones filled (a rendering bug on its end), so this is drawn as a circle outline for now regardless of the angle set here."));
             }
+
+            ImGui.SetNextItemWidth(150f);
+            ImGui.DragFloat(Loc.Text("Outline Thickness"), ref DebugThickness, 0.1f, 0.5f, 10f);
 
             ImGui.ColorEdit4(Loc.Text("Color"), ref DebugColor);
 
@@ -1361,6 +1367,7 @@ namespace EurekaHelper.Windows
                     Radius = DebugRadius,
                     ConeHalfAngleDegrees = DebugConeHalfAngle,
                     Color = ImGui.ColorConvertFloat4ToU32(DebugColor),
+                    Thickness = DebugThickness,
                 });
             }
 

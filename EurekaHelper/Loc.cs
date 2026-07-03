@@ -1041,6 +1041,8 @@ internal static class Loc
 		["Cone"] = "扇形",
 		["Show NM Aggro Ranges (Splatoon)"] = "顯示 NM 仇恨範圍（Splatoon）",
 		["Requires the Splatoon plugin. Draws each NM's aural/visual/magic/blood aggro range as a circle/cone.\nEXPERIMENTAL: aggro range data is unverified/incomplete - see AggroRanges.json in the plugin config folder."] = "需要安裝 Splatoon 插件。會將每隻 NM 的聽覺/視覺/魔法/血親仇恨範圍畫成圓形/扇形。\n實驗性功能：仇恨範圍資料尚未驗證/不完整，請參考插件設定資料夾裡的 AggroRanges.json。",
+		["Note: Splatoon currently always draws cones filled (a rendering bug on its end), so this is drawn as a circle outline for now regardless of the angle set here."] = "注意：Splatoon 目前畫扇形時一律會實心填滿（這是它本身的渲染 bug），所以現在不管這裡設定的角度是多少，都會改用圓形外框顯示。",
+		["Outline Thickness"] = "外框粗細",
 		["Aggro range data file:"] = "仇恨範圍資料檔：",
 		["Reload aggro range data"] = "重新載入仇恨範圍資料",
 		["Re-reads AggroRanges.json after you've edited it, without needing to restart the plugin."] = "修改 AggroRanges.json 後重新讀取，不需要重啟插件。"

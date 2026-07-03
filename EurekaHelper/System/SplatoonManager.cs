@@ -64,16 +64,22 @@ namespace EurekaHelper.System
             {
                 foreach (var range in ranges)
                 {
-                    elements.Add(new Element(range.Shape == AggroShape.Cone ? ElementType.ConeRelativeToObjectPosition : ElementType.CircleRelativeToActorPosition)
+                    // NOTE: Splatoon's ImGui-Legacy renderer hardcodes Cone elements to always
+                    // draw filled, ignoring Element.Filled entirely (confirmed in Splatoon's own
+                    // source, Splatoon/RenderEngines/ImGuiLegacy/ImGuiLegacyRenderer.cs AddCone:
+                    // `new DisplayObjectCone(..., e.color, true)` - "true" is hardcoded, not
+                    // e.Filled). Circle elements DO respect Filled correctly. Until that's fixed
+                    // upstream (or the user's on the DirectX11 render engine, unverified), always
+                    // draw a circle outline instead of a cone/wedge - loses directionality for
+                    // "Visual"-type entries but reliably never renders as a solid fill.
+                    elements.Add(new Element(ElementType.CircleRelativeToActorPosition)
                     {
                         refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
                         refActorName = bossName,
                         radius = range.Radius,
-                        coneAngleMin = -range.ConeHalfAngleDegrees,
-                        coneAngleMax = range.ConeHalfAngleDegrees,
-                        includeRotation = range.Shape == AggroShape.Cone,
                         color = range.Color,
-                        Filled = false,
+                        Filled = false, // outline only, never a filled disc
+                        thicc = range.Thickness,
                     });
                 }
             }
@@ -192,6 +198,7 @@ namespace EurekaHelper.System
         public float Radius { get; set; }
         public int ConeHalfAngleDegrees { get; set; } = 60;
         public uint Color { get; set; } = 0xFFFFFFFF;
+        public float Thickness { get; set; } = 2f;
     }
 
     public static class AggroTypeDefaults
