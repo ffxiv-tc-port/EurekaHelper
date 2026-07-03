@@ -21,15 +21,51 @@ namespace EurekaHelper.System
     {
         private const string LayerName = "EurekaHelper.AggroRanges";
 
-        // Name substrings that let us auto-classify a newly-seen monster without needing manual
-        // Debug-tab confirmation - see EnsureConfigFileExists for the sourcing/reasoning behind
-        // these two categories (weather-gated "Sprite" adds -> Magic, Ashkin/undead-named
-        // night-only spawners -> Blood). Anything not matching either list is left as the
-        // default Visual aggro (not recorded - that's the common case).
-        private static readonly string[] MagicNamePatterns = { "Sprite" };
-        private static readonly string[] BloodNamePatterns =
+        // IMPORTANT: this is a TC (Traditional Chinese) client build, so IBattleNpc.Name.TextValue
+        // from the live object table is the CHINESE display name, not the English one used
+        // elsewhere in this codebase (EurekaFate.BossName/SpawnedBy, Loc.cs's EurekaNamesZhTw,
+        // etc. - all English-keyed). Splatoon's refActorName has to match the actual live display
+        // name too, or it silently binds to nothing. So this classification dictionary is keyed
+        // by the CHINESE name specifically - matching against English substrings here (as an
+        // earlier version of this file did) would never fire on this client.
+        //
+        // Sourced from community-compiled Eureka aggro-type notes (user-provided, cross-zone
+        // aural/blood/magic breakdown with level ranges and NM-trigger context) rather than an
+        // official source, since none publishes a full per-mob table. Radius is intentionally
+        // left at each type's default from AggroTypeDefaults (0 for Magic/Blood - no known
+        // baseline distance, drawn as nothing until measured via the Debug tab; Aural/Visual do
+        // have a default and draw immediately).
+        private static readonly Dictionary<string, AggroType> KnownAggroNames = new()
         {
-            "Wraith", "Specter", "Corpse", "Bhoot", "Dullahan", "Ghost", "Ghast", "Skeleton", "Zombie", "Ghoul", "Lich", "Revenant",
+            // 聽覺型 (Aural) - blind to sight, aggros on movement/running past. Core counter:
+            // walk (not run) past them.
+            ["舊日之影"] = AggroType.Aural,      // Anemos, Lv18-22 (Shadow Wraith)
+            ["虛無冰雪龍"] = AggroType.Aural,     // Pagos, Lv40 (Frozen Void Dragon) - the famous "sleeping dragon"
+            ["恒冰阿納拉"] = AggroType.Aural,     // Pagos, Lv29-31 (Pagos Anala)
+            ["湧火鷹蜂"] = AggroType.Aural,       // Pyros, Lv50 (Pyros Hawk)
+            ["瓦爾蜘蛛"] = AggroType.Aural,       // Pyros, Lv45-47 (Val Tarantula)
+            ["豐水睡龍"] = AggroType.Aural,       // Hydatos, Lv65 (Hydatos Void Dragon)
+            ["豐水魔界花"] = AggroType.Aural,     // Hydatos, Lv58-60 (Hydatos Morbol)
+
+            // 血量偵測型/夜間不死系 (Blood) - only spawn 18:00-06:00, infinite-aggro anyone
+            // below ~30% HP regardless of facing/distance. Core counter: don't run around at
+            // night below 30% HP.
+            ["瓦爾幽靈"] = AggroType.Blood,       // Anemos (Val Specter), triggers Lv19 NM Lamashtu
+            ["化石暴龍"] = AggroType.Blood,       // Anemos (Fossil Dragon), triggers Lv20 NM Fafnir
+            ["恒冰屍骸"] = AggroType.Blood,       // Pagos (Pagos Corpse)
+            ["墓地守衛"] = AggroType.Blood,       // Pagos (Gravekeeper), triggers Lv33 NM Ker
+            ["湧火白狼"] = AggroType.Blood,       // Pyros (Pyros Wolf)
+            ["湧火浮靈"] = AggroType.Blood,       // Pyros (Pyros Bhoot), triggers Lv35 NM Leucosia
+            ["豐水巫妖"] = AggroType.Blood,       // Hydatos (Hydatos Lich)
+            ["實驗體"] = AggroType.Blood,         // Hydatos (Experimental Tomestones)
+
+            // 魔法偵測型/元精系 (Magic) - only spawn in specific weather, aggro on any nearby
+            // spell/magic-category action (including healing, Logos actions). Core counter:
+            // don't cast anything near them.
+            ["常風元精"] = AggroType.Magic,       // Anemos, Showers/Gales
+            ["冰島元精"] = AggroType.Magic,       // Pagos, Thunder/Blizzards
+            ["湧火元精"] = AggroType.Magic,       // Pyros, Heat Waves/Fair Skies
+            ["豐水元精"] = AggroType.Magic,       // Hydatos, Thunderstorms/Squall
         };
 
         private readonly string _configPath;
@@ -106,14 +142,11 @@ namespace EurekaHelper.System
             if (_aggroRanges.ContainsKey(name))
                 return;
 
-            // Anything not matching a known exception pattern falls back to Visual, the
-            // documented default aggro type for most Eureka mobs - and unlike Magic/Blood (no
-            // known default radius), Visual/Aural DO have user-specified baseline ranges, so
-            // this is drawn immediately rather than sitting at radius 0 until measured.
-            var type =
-                MagicNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Magic :
-                BloodNamePatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)) ? AggroType.Blood :
-                AggroType.Visual;
+            // Anything not in KnownAggroNames falls back to Visual, the documented default aggro
+            // type for most Eureka mobs - and unlike Magic/Blood (no known default radius),
+            // Visual/Aural DO have user-specified baseline ranges, so this is drawn immediately
+            // rather than sitting at radius 0 until measured.
+            var type = KnownAggroNames.GetValueOrDefault(name, AggroType.Visual);
 
             var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type);
             AddEntry(name, new AggroRangeConfig
@@ -248,36 +281,26 @@ namespace EurekaHelper.System
                 return;
 
             // Seed data. Every Eureka mob defaults to Visual (sight) aggro if it's not listed
-            // here at all - that's the common case and not worth an entry per mob. The handful
-            // of named spawner mobs below are the well-documented exceptions to that default
-            // (see community wiki consensus: "Sprites" that only spawn in specific weather use
-            // Magic aggro; Ashkin/undead-named mobs that only spawn at night use Blood/low-HP
-            // aggro), cross-checked against this repo's own EurekaFate data (SpawnByRequiredWeather
-            // / SpawnByRequiredNight flags in XIV/Zones/*.cs already flag exactly these mobs).
-            // Radius is intentionally 0 (drawn as nothing, see DrawForCurrentZone) - no public
-            // source gives per-mob aggro *distance*, only aggro *type*. Use the Debug tab to lock
-            // one in-game and measure/tune the real radius, which'll overwrite the 0 here.
+            // here at all - that's the common case and not worth an entry per mob. Everything in
+            // KnownAggroNames is a documented exception, keyed by the actual TC Chinese display
+            // name (see that dictionary's comments for sourcing/reasoning per entry).
             var seed = new Dictionary<string, List<AggroRangeConfig>>
             {
-                ["EXAMPLE - Sabotender Corrido"] = new()
+                ["EXAMPLE - 沙巴頓仙人掌怪"] = new()
                 {
                     new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 10f, Color = 0xFF00FFFFu },
                     new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0xFF0000FFu },
                 },
-
-                // Weather-gated "Sprite" adds -> Magic aggro (aggros on nearby spell cast)
-                ["Typhoon Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } },   // Anemos, spawns Jahannam, requires Gales
-                ["Snowmelt Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } },  // Pagos, spawns Anapos, requires Fog
-                ["Thunderstorm Sprite"] = new() { new AggroRangeConfig { Type = AggroType.Magic, Radius = 0f } }, // Pyros, spawns Flauros, requires Thunder
-
-                // Night-only + undead-named spawners -> Blood/low-HP aggro (ashkin convention)
-                ["Val Specter"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },      // Anemos, spawns Lamashtu
-                ["Shadow Wraith"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },    // Anemos, spawns Pazuzu
-                ["Duskfall Dullahan"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } }, // Anemos, spawns The White Rider
-                ["Hydatos Wraith"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },   // Hydatos, spawns King Goldemar
-                ["Val Corpse"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },       // Pagos, spawns Louhi
-                ["Pyros Bhoot"] = new() { new AggroRangeConfig { Type = AggroType.Blood, Radius = 0f } },      // Pyros, spawns Leucosia
             };
+
+            foreach (var (name, type) in KnownAggroNames)
+            {
+                var (shape, color, radius, coneHalfAngle) = AggroTypeDefaults.Get(type);
+                seed[name] = new List<AggroRangeConfig>
+                {
+                    new() { Type = type, Shape = shape, Radius = radius, ConeHalfAngleDegrees = coneHalfAngle, Color = color },
+                };
+            }
 
             File.WriteAllText(_configPath, JsonConvert.SerializeObject(seed, Formatting.Indented));
         }
@@ -288,7 +311,7 @@ namespace EurekaHelper.System
             {
                 var json = File.ReadAllText(_configPath);
                 _aggroRanges = JsonConvert.DeserializeObject<Dictionary<string, List<AggroRangeConfig>>>(json) ?? new();
-                _aggroRanges.Remove("EXAMPLE - Sabotender Corrido");
+                _aggroRanges.Remove("EXAMPLE - 沙巴頓仙人掌怪");
             }
             catch (Exception ex)
             {
