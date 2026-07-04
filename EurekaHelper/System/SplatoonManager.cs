@@ -410,7 +410,7 @@ namespace EurekaHelper.System
                 ["EXAMPLE - 沙巴頓仙人掌怪"] = new()
                 {
                     new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 10f, Color = 0x4000FFFFu },
-                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0x300000FFu },
+                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0x180000FFu },
                 },
             };
 
@@ -485,7 +485,7 @@ namespace EurekaHelper.System
         public static (AggroShape Shape, uint Color, float Radius, int ConeHalfAngleDegrees) Get(AggroType type) => type switch
         {
             AggroType.Aural => (AggroShape.Circle, 0x4000FFFFu, 10f, 60),
-            AggroType.Visual => (AggroShape.Cone, 0x300000FFu, 15f, 45), // ~19% alpha - cones always draw filled (Splatoon quirk), so keep it very light
+            AggroType.Visual => (AggroShape.Cone, 0x180000FFu, 15f, 45), // ~9% alpha - cones always draw filled (Splatoon quirk), so keep it barely visible
             AggroType.Magic => (AggroShape.Circle, 0x40FF7E27u, 0f, 60),
             AggroType.Blood => (AggroShape.Circle, 0x40B000FFu, 0f, 60),
             _ => (AggroShape.Circle, 0x40FFFFFFu, 0f, 60),
