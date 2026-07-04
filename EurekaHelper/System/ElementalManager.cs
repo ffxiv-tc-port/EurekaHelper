@@ -34,10 +34,16 @@ namespace EurekaHelper.System
 
                 if (EurekaHelper.Config.ElementalAlwaysClear)
                     Elementals.Clear();
+
+                if (EurekaHelper.Config.AutoOpenRelicWindowInEureka)
+                    EurekaHelper.Plugin.RelicWindow.IsOpen = true;
             }
             else
             {
                 DalamudApi.Framework.Update -= OnUpdate;
+
+                if (EurekaHelper.Config.AutoOpenRelicWindowInEureka)
+                    EurekaHelper.Plugin.RelicWindow.IsOpen = false;
             }
         }
 

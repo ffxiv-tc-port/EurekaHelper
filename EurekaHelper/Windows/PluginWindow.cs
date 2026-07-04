@@ -1136,6 +1136,14 @@ namespace EurekaHelper.Windows
                 Loc.Text("This option can be enabled to use the chat sound effects instead of the other sound effects.\nThis option is active for ALL sound effects and will not overwrite your previous selections, however you will need to reset the sound effects."));
             ImGui.NextColumn();
 
+            if (ImGui.Button(EurekaHelper.Plugin.RelicWindow.IsOpen ? Loc.Text("Close Relic Window") : Loc.Text("Open Relic Window")))
+                EurekaHelper.Plugin.RelicWindow.IsOpen ^= true;
+            ImGui.NextColumn();
+
+            save |= ImGui.Checkbox(Loc.Text("Auto Open Relic Window In Eureka"), ref EurekaHelper.Config.AutoOpenRelicWindowInEureka);
+            Utils.SetTooltip(Loc.Text("Automatically opens the Relic window when you enter a Eureka zone, and closes it when you leave."));
+            ImGui.NextColumn();
+
             var enableSplatoon = EurekaHelper.Config.EnableSplatoonAggroRanges;
             if (ImGui.Checkbox(Loc.Text("Show NM Aggro Ranges (Splatoon)"), ref enableSplatoon))
             {

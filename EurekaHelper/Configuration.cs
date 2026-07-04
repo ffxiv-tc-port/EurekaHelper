@@ -118,6 +118,11 @@ namespace EurekaHelper
         public bool EnableSplatoonAggroRanges = false;
 
         /*
+         * Relic Window Configurations
+         */
+        public bool AutoOpenRelicWindowInEureka = false;
+
+        /*
          * Server ID Configurations
          */
         public bool DisplayServerId = false;
