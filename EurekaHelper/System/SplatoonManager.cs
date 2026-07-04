@@ -285,6 +285,13 @@ namespace EurekaHelper.System
         // Skip drawing entirely once the player is farther than MaxDrawDistance from the
         // aggro-range's own reference actor - there's no point rendering ranges around monsters
         // nowhere near the player, and it keeps distant zone-wide clutter off screen.
+        //
+        // NOTE: Splatoon compares DistanceSourceX/Y/Z against gameObject.GetPositionXZY(), which
+        // swaps Y (height) and Z (depth) from Dalamud's normal Position layout (confirmed by
+        // decompiling Splatoon.dll - Utility.GetPositionXZY literally swaps them). Feeding it raw
+        // Position.X/Y/Z here compared height against depth and vice versa, so nearly every
+        // monster measured as "too far" the moment there was any elevation difference - which
+        // hid everything. Swapping Y/Z here to match fixes it.
         private static void ApplyDistanceLimit(Element element, global::System.Numerics.Vector3? playerPos)
         {
             if (playerPos is not { } pos)
@@ -292,8 +299,8 @@ namespace EurekaHelper.System
 
             element.LimitDistance = true;
             element.DistanceSourceX = pos.X;
-            element.DistanceSourceY = pos.Y;
-            element.DistanceSourceZ = pos.Z;
+            element.DistanceSourceY = pos.Z;
+            element.DistanceSourceZ = pos.Y;
             element.DistanceMax = MaxDrawDistance;
         }
 
