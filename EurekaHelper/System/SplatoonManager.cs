@@ -128,6 +128,9 @@ namespace EurekaHelper.System
         public (int TotalObjects, int BattleNpcs, int EnemyKind, int AliveEnemies) GetLastScanCounts() =>
             (_lastScanTotalObjects, _lastScanBattleNpcs, _lastScanEnemyKind, _lastScanAliveEnemies);
 
+        private static readonly TimeSpan RedrawInterval = TimeSpan.FromSeconds(2);
+        private DateTime _nextForcedRedraw = DateTime.MinValue;
+
         private void OnFrameworkUpdate(IFramework framework)
         {
             var newNames = false;
@@ -211,6 +214,19 @@ namespace EurekaHelper.System
                 SaveConfig();
                 Splatoon.RemoveDynamicElements(LayerName);
                 DrawForCurrentZone();
+                _nextForcedRedraw = DateTime.UtcNow + RedrawInterval;
+            }
+            else if (DateTime.UtcNow >= _nextForcedRedraw)
+            {
+                // Splatoon's onlyTargetable filter is only re-evaluated against the current
+                // dynamic element set, not against the live object table on every render frame -
+                // a dead monster's circle otherwise keeps showing until something else happens to
+                // trigger a redraw (e.g. a brand-new monster gets classified). Force a periodic
+                // remove+re-add so dead monsters' aggro ranges clear out within ~2 seconds instead
+                // of lingering indefinitely.
+                Splatoon.RemoveDynamicElements(LayerName);
+                DrawForCurrentZone();
+                _nextForcedRedraw = DateTime.UtcNow + RedrawInterval;
             }
         }
 
