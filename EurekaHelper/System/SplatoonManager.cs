@@ -146,13 +146,15 @@ namespace EurekaHelper.System
                     continue;
                 battleNpcs++;
 
-                // NOTE: BOTH BattleNpcKind != Enemy AND OwnerId != 0 were tried here and each, in
-                // turn, filtered out 100% of BattleNpc found in testing (18/18, then 41/41) -
-                // this build's older TC Dalamud API apparently doesn't populate these fields the
-                // way current Dalamud's docs describe. Giving up on field-level pet/summon
-                // filtering for now; accepting the rare false positive (an actual player pet
-                // slipping into the list) in exchange for the feature working at all. Revisit if
-                // a reliable field is found.
+                // NOTE: BOTH BattleNpcKind != Enemy AND OwnerId != 0 were tried and each, in turn,
+                // filtered out 100% of BattleNpc in testing (18/18, then 41/41) - the Dalamud-mapped
+                // BattleNpcKind enum wrapper appears broken on this build's older API level. The raw
+                // SubKind byte (same underlying game value, just read without the enum wrapper) does
+                // work: 5 = Enemy, 2 = Pet (fairy/egi/automaton), 3 = Chocobo companion, 9 = Buddy/trust,
+                // 11 = Helper. Filtering on the raw byte instead of the wrapper is what actually excludes
+                // summoned pets without also rejecting real monsters.
+                if (battleNpc.SubKind != 5)
+                    continue;
                 enemyKind++;
 
                 // Skip dead bodies (corpse still exists briefly before despawning). NOTE: an
