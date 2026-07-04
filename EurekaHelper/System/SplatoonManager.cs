@@ -280,6 +280,23 @@ namespace EurekaHelper.System
         // Redraws every configured NM's aggro ranges for the zone we're currently in. Safe to
         // call repeatedly (e.g. after reloading the config file); Splatoon replaces elements
         // under the same layer name rather than stacking duplicates.
+        private const float MaxDrawDistance = 60f;
+
+        // Skip drawing entirely once the player is farther than MaxDrawDistance from the
+        // aggro-range's own reference actor - there's no point rendering ranges around monsters
+        // nowhere near the player, and it keeps distant zone-wide clutter off screen.
+        private static void ApplyDistanceLimit(Element element, global::System.Numerics.Vector3? playerPos)
+        {
+            if (playerPos is not { } pos)
+                return;
+
+            element.LimitDistance = true;
+            element.DistanceSourceX = pos.X;
+            element.DistanceSourceY = pos.Y;
+            element.DistanceSourceZ = pos.Z;
+            element.DistanceMax = MaxDrawDistance;
+        }
+
         public void DrawForCurrentZone()
         {
             if (!_splatoonReady || !Splatoon.IsConnected())
@@ -287,6 +304,8 @@ namespace EurekaHelper.System
 
             if (!Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
                 return;
+
+            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
 
             var elements = new List<Element>();
             foreach (var (bossName, ranges) in _aggroRanges)
@@ -306,7 +325,7 @@ namespace EurekaHelper.System
                         // cone filled but with a low-alpha color (see AggroTypeDefaults - Visual's
                         // default color has ~30% alpha) so it reads as a light directional tint
                         // instead of an opaque wedge.
-                        elements.Add(new Element(ElementType.ConeRelativeToObjectPosition)
+                        var cone = new Element(ElementType.ConeRelativeToObjectPosition)
                         {
                             refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
                             refActorName = bossName,
@@ -318,11 +337,13 @@ namespace EurekaHelper.System
                             Filled = true,
                             thicc = range.Thickness,
                             onlyTargetable = true, // stop drawing once the actor dies/despawns
-                        });
+                        };
+                        ApplyDistanceLimit(cone, playerPos);
+                        elements.Add(cone);
                     }
                     else
                     {
-                        elements.Add(new Element(ElementType.CircleRelativeToActorPosition)
+                        var circle = new Element(ElementType.CircleRelativeToActorPosition)
                         {
                             refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
                             refActorName = bossName,
@@ -331,7 +352,9 @@ namespace EurekaHelper.System
                             Filled = false, // Circle elements DO respect Filled correctly - outline only
                             thicc = range.Thickness,
                             onlyTargetable = true, // stop drawing once the actor dies/despawns
-                        });
+                        };
+                        ApplyDistanceLimit(circle, playerPos);
+                        elements.Add(circle);
                     }
                 }
             }
