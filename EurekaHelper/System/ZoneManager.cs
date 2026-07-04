@@ -11,7 +11,6 @@ namespace EurekaHelper.System
     {
         private delegate nint InitZoneDelegate(nint a1, int a2, nint a3);
         private readonly IDtrBarEntry _dtrBarEntry;
-        private readonly IDtrBarEntry _dtrToggleEntry;
 
         public ZoneManager()
         {
@@ -41,39 +40,8 @@ namespace EurekaHelper.System
                 }
             }
 
-            // 典籍: a standalone DTR entry that just opens/closes the main plugin window on
-            // click, so the window is reachable without a slash command or the Dalamud plugin
-            // installer's config-gear button.
-            var dtrToggleTitle = "Eureka Helper 典籍";
-            try
-            {
-                _dtrToggleEntry = DalamudApi.DtrBar.Get(dtrToggleTitle);
-            }
-            catch (ArgumentException ex)
-            {
-                for (var i = 0; i < 5; i++)
-                {
-                    DalamudApi.Log.Error(ex, $"Failed to acquire DtrBarEntry {dtrToggleTitle}, trying {dtrToggleTitle}{i}");
-                    try
-                    {
-                        _dtrToggleEntry = DalamudApi.DtrBar.Get($"{dtrToggleTitle}{i}");
-                    }
-                    catch (ArgumentException)
-                    {
-                        continue;
-                    }
-
-                    break;
-                }
-            }
-
-            if (_dtrToggleEntry != null)
-            {
-                _dtrToggleEntry.Text = "典籍";
-                _dtrToggleEntry.Tooltip = "開啟 Eureka Helper";
-                _dtrToggleEntry.OnClick = () => EurekaHelper.Plugin.PluginWindow.IsOpen ^= true;
-                _dtrToggleEntry.Shown = true;
-            }
+            if (_dtrBarEntry != null)
+                _dtrBarEntry.OnClick = () => EurekaHelper.Plugin.PluginWindow.IsOpen ^= true;
         }
 
         [Signature("E8 ?? ?? ?? ?? 45 33 C0 48 8D ?? ?? 8B ?? E8 ?? ?? ?? ?? 48 8D ??", DetourName = nameof(InitZoneDetour))]
@@ -122,7 +90,6 @@ namespace EurekaHelper.System
         {
             InitZoneHook?.Dispose();
             _dtrBarEntry?.Remove();
-            _dtrToggleEntry?.Remove();
         }
     }
 }
