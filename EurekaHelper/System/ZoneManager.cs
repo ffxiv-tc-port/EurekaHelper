@@ -107,9 +107,11 @@ namespace EurekaHelper.System
         // out of the same instance repeatedly without losing it. On entering a zone, only
         // rebuild the connection if the server ID differs from last time we saw this zone,
         // meaning it's actually a different running instance now (so the existing tracker no
-        // longer reflects reality). If this zone has no recorded server ID yet (first time this
-        // session), just adopt the current one as the baseline rather than treating it as a
-        // mismatch.
+        // longer reflects reality) - and rebuilding here means a brand-new tracker, not
+        // rejoining the old one, since a different server ID means different NM spawns/timers
+        // that the old tracker's data no longer applies to. If this zone has no recorded server
+        // ID yet (first time this session), just adopt the current one as the baseline rather
+        // than treating it as a mismatch.
         private void HandleZoneEntry(int zoneIndex, ushort serverId)
         {
             CurrentZoneIndex = zoneIndex;
@@ -122,13 +124,15 @@ namespace EurekaHelper.System
             _lastServerIdPerZone[zoneIndex] = serverId;
 
             if (lastServerId != 0 && lastServerId != serverId)
-                RebuildTrackerConnection(zoneIndex);
+                _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
         }
 
-        // Closes and rejoins a zone's tracker using the same code/password it already had -
-        // used both automatically (server ID mismatch on zone entry) and manually (a "rebuild"
-        // button in the Tracker tab, for when the connection just seems stuck/stale). No-op if
-        // that zone isn't currently connected to anything.
+        // Closes and rejoins a zone's tracker using the same code/password it already had - used
+        // by the manual "rebuild" button in the Tracker tab, for when the connection just seems
+        // stuck/stale but the underlying tracker itself is still the right one. (A server ID
+        // mismatch on zone entry is handled separately, in HandleZoneEntry, by creating a whole
+        // new tracker instead - see that method's comment for why.) No-op if that zone isn't
+        // currently connected to anything.
         public static void RebuildTrackerConnection(int zoneIndex)
         {
             var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
