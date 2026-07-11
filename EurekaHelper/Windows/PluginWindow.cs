@@ -91,8 +91,23 @@ namespace EurekaHelper.Windows
             }
         }
 
-        public string TrackerCode = string.Empty;
-        public string TrackerPassword = string.Empty;
+        // Index 1-4 = Anemos/Pagos/Pyros/Hydatos, mirroring Connections - these are just the
+        // input-box text for the Code/Password fields, kept per-zone so typing/joining in one
+        // zone tab doesn't overwrite what's shown in another.
+        private readonly string[] TrackerCodeInputs = new string[5];
+        private readonly string[] TrackerPasswordInputs = new string[5];
+
+        public string TrackerCode
+        {
+            get => TrackerCodeInputs[SelectedTrackerZoneIndex] ??= string.Empty;
+            set => TrackerCodeInputs[SelectedTrackerZoneIndex] = value;
+        }
+
+        public string TrackerPassword
+        {
+            get => TrackerPasswordInputs[SelectedTrackerZoneIndex] ??= string.Empty;
+            set => TrackerPasswordInputs[SelectedTrackerZoneIndex] = value;
+        }
 
         private AggroType DebugAggroType = AggroType.Aural;
         private AggroShape DebugAggroShape = AggroShape.Circle;
@@ -311,14 +326,18 @@ namespace EurekaHelper.Windows
                 ImGui.Text(Loc.Text("Code:"));
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(110f);
-                ImGui.InputTextWithHint("##TrackerCode", Loc.Text("Enter 6 digit code"), ref TrackerCode, 6);
+                var trackerCode = TrackerCode;
+                ImGui.InputTextWithHint("##TrackerCode", Loc.Text("Enter 6 digit code"), ref trackerCode, 6);
+                TrackerCode = trackerCode;
 
                 ImGui.TableNextColumn();
                 ImGui.AlignTextToFramePadding();
                 ImGui.Text(Loc.Text("Password:"));
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(200f);
-                ImGui.InputTextWithHint("##TrackerPassword", Loc.Text("Enter tracker password"), ref TrackerPassword, 100);
+                var trackerPassword = TrackerPassword;
+                ImGui.InputTextWithHint("##TrackerPassword", Loc.Text("Enter tracker password"), ref trackerPassword, 100);
+                TrackerPassword = trackerPassword;
                 Utils.SetTooltip(
                     Loc.Text("Don't input if you just want to join a tracker.\nIf you have the password, enter the correct password or you'll need to press \"Set\" again."));
 
@@ -333,20 +352,22 @@ namespace EurekaHelper.Windows
                         // apply the result to the wrong zone's connection.
                         var zoneIndex = SelectedTrackerZoneIndex;
                         var conn = Connections[zoneIndex] ??= new EurekaConnectionManager();
+                        var enteredCode = TrackerCode;
+                        var enteredPassword = TrackerPassword;
                         _ = Task.Run(async () =>
                         {
-                            if (conn.GetTrackerId() == TrackerCode)
+                            if (conn.GetTrackerId() == enteredCode)
                             {
                                 if (conn.IsConnected() && !conn.CanModify() &&
-                                    !string.IsNullOrWhiteSpace(TrackerPassword))
-                                    await conn.SetPassword(TrackerPassword);
+                                    !string.IsNullOrWhiteSpace(enteredPassword))
+                                    await conn.SetPassword(enteredPassword);
                             }
                             else
                             {
                                 if (conn.IsConnected())
                                     await conn.Close();
 
-                                Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(TrackerCode, TrackerPassword);
+                                Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(enteredCode, enteredPassword);
                             }
                         });
                     }
@@ -377,8 +398,8 @@ namespace EurekaHelper.Windows
             if (existing != null && existing.IsConnected())
                 await existing.Close();
 
-            TrackerCode = trackerId;
-            TrackerPassword = password;
+            TrackerCodeInputs[zoneId] = trackerId;
+            TrackerPasswordInputs[zoneId] = password;
             Connections[zoneId] = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
@@ -400,8 +421,8 @@ namespace EurekaHelper.Windows
             if (existing != null && existing.IsConnected())
                 await existing.Close();
 
-            TrackerCode = trackerId;
-            TrackerPassword = password;
+            TrackerCodeInputs[zoneIndex] = trackerId;
+            TrackerPasswordInputs[zoneIndex] = password;
             Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
