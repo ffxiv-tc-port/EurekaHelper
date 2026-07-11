@@ -15,8 +15,13 @@ namespace EurekaHelper.System
 
         // Which zone tracker (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos, 0=none) is currently the
         // "active" one for auto-remember/reconnect purposes, and the server ID it was joined on.
+        // Exposed publicly too so the UI can show "which server ID am I actually on right now"
+        // (e.g. next to the tracker's viewer count) without duplicating the InitZoneDetour hook.
         private int _activeZoneIndex;
         private ushort _activeServerId;
+
+        public static int CurrentZoneIndex { get; private set; }
+        public static ushort CurrentServerId { get; private set; }
 
         public ZoneManager()
         {
@@ -102,6 +107,9 @@ namespace EurekaHelper.System
         // same server ID can silently rejoin it instead of leaving the tab disconnected.
         private void HandleTrackerAutoReconnect(int newZoneIndex, ushort newServerId)
         {
+            CurrentZoneIndex = newZoneIndex;
+            CurrentServerId = newServerId;
+
             if (_activeZoneIndex == newZoneIndex)
                 return;
 

@@ -108,7 +108,7 @@ namespace EurekaHelper.Windows
             {
                 for (var zoneIndex = 1; zoneIndex <= Constants.EurekaZones.Length; zoneIndex++)
                 {
-                    var zoneName = Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]);
+                    var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
                     if (ImGui.BeginTabItem(zoneName))
                     {
                         SelectedTrackerZoneIndex = zoneIndex;
@@ -289,7 +289,9 @@ namespace EurekaHelper.Windows
                     ImGui.PopStyleColor();
                 }
 
-                var idViewersText = Loc.Format("ID: {0}\t\tViewers: {1}", Connection.GetTrackerId(), Connection.GetViewers());
+                var idViewersText = ZoneManager.CurrentZoneIndex == SelectedTrackerZoneIndex && ZoneManager.CurrentServerId != 0
+                    ? Loc.Format("ID: {0}\t\tServer ID: {1}\t\tViewers: {2}", Connection.GetTrackerId(), ZoneManager.CurrentServerId, Connection.GetViewers())
+                    : Loc.Format("ID: {0}\t\tViewers: {1}", Connection.GetTrackerId(), Connection.GetViewers());
                 ImGui.SameLine(ImGui.GetContentRegionAvail().X - ImGui
                     .CalcTextSize(idViewersText).X);
                 ImGui.AlignTextToFramePadding();

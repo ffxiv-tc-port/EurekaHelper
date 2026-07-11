@@ -799,6 +799,7 @@ internal static class Loc
 		["=> Has been popped and is on a respawn timer"] = "=> 已觸發，正在重生倒數",
 		["=> One of the requirements is not met to spawn/prep the NM"] = "=> 尚未滿足觸發或準備 NM 的其中一項條件",
 		["ID: {0}\t\tViewers: {1}"] = "ID: {0}\t\t觀看者：{1}",
+		["ID: {0}\t\tServer ID: {1}\t\tViewers: {2}"] = "ID: {0}\t\t伺服器 ID：{1}\t\t觀看者：{2}",
 		["Code"] = "代碼",
 		["Password"] = "密碼",
 		["Button"] = "按鈕",
