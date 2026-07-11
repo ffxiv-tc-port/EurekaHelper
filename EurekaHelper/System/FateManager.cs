@@ -18,6 +18,11 @@ namespace EurekaHelper.System
         private List<IFate> lastFates = new();
         private IEurekaTracker EurekaTracker;
 
+        // Fate IDs that have already had an auto-pop time attempt sent this zone visit - guards
+        // AutoPopTimeForAlreadyActiveFates below against resending every tick while the "set
+        // once" async call is in flight.
+        private readonly HashSet<ushort> _autoPopAttempted = new();
+
         public FateManager(EurekaHelper plugin)
         {
             _plugin = plugin;
@@ -39,6 +44,7 @@ namespace EurekaHelper.System
                         _ = Task.Run(async() => await _plugin.PluginWindow.CreateTracker(Utils.GetIndexOfZone(territoryId), true));
 
                 EurekaTracker = Utils.GetEurekaTracker(territoryId);
+                _autoPopAttempted.Clear();
                 DalamudApi.Framework.Update += OnUpdate;
             }
             else
@@ -75,6 +81,8 @@ namespace EurekaHelper.System
                 }
             }
 
+            AutoPopTimeForAlreadyActiveFates();
+
             if (DalamudApi.FateTable.SequenceEqual(lastFates))
                 return;
 
@@ -85,6 +93,45 @@ namespace EurekaHelper.System
                 DisplayFatePop(fate);
 
             lastFates = DalamudApi.FateTable.ToList();
+        }
+
+        // DisplayFatePop's AutoPopFate logic only fires off the newFates diff, which is a one-shot
+        // edge trigger against lastFates - an NM that was ALREADY active the moment you zoned in
+        // (someone else triggered it before you arrived) is caught by that diff too (lastFates
+        // starts empty on zone entry), but only if the tracker connection has already finished
+        // (re)connecting by that exact tick. Since zone entry now kicks off an async tracker
+        // reconnect/rebuild (see ZoneManager.HandleZoneEntry) that can still be in flight when
+        // this first runs, the connection-not-ready check in DisplayFatePop silently drops the
+        // pop-time write and the fate is never flagged as "new" again afterwards. This runs every
+        // tick (idempotent via _autoPopAttempted) so it catches the fate on whichever tick the
+        // connection actually becomes ready, rather than depending on winning that race.
+        private void AutoPopTimeForAlreadyActiveFates()
+        {
+            if (!EurekaHelper.Config.AutoPopFate)
+                return;
+
+            var connection = PluginWindow.GetConnection();
+            if (!connection.IsConnected() || !connection.CanModify())
+                return;
+
+            var activeFateIds = new HashSet<ushort>(DalamudApi.FateTable.Where(x => !Utils.IsBunnyFate(x.FateId)).Select(x => x.FateId));
+            var trackerFates = connection.GetTracker().GetFates();
+
+            foreach (var eurekaFate in EurekaTracker.GetFates())
+            {
+                if (!activeFateIds.Contains(eurekaFate.FateId) || _autoPopAttempted.Contains(eurekaFate.FateId))
+                    continue;
+
+                var trackerFate = trackerFates.Find(x => x.IncludeInTracker && x.FateId == eurekaFate.FateId);
+                if (trackerFate is null)
+                    continue;
+
+                if (trackerFate.IsPopped() && !(EurekaHelper.Config.AutoPopFateWithinRange && trackerFate.IsRespawnTimeWithinRange(TimeSpan.FromMinutes(5))))
+                    continue;
+
+                _autoPopAttempted.Add(eurekaFate.FateId);
+                _ = Task.Run(async () => await connection.SetPopTime((ushort)eurekaFate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+            }
         }
 
         public static void DisplayFatePop(EurekaFate fate)
