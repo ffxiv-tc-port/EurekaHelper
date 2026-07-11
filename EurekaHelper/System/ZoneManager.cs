@@ -112,9 +112,14 @@ namespace EurekaHelper.System
         // meaning it's actually a different running instance now (so the existing tracker no
         // longer reflects reality) - and rebuilding here means a brand-new tracker, not
         // rejoining the old one, since a different server ID means different NM spawns/timers
-        // that the old tracker's data no longer applies to. If this zone has no recorded server
-        // ID yet (first time this session), just adopt the current one as the baseline rather
-        // than treating it as a mismatch.
+        // that the old tracker's data no longer applies to.
+        //
+        // If this zone has no recorded server ID yet THIS SESSION, check whether a plugin
+        // restart wiped an in-progress connection: Configuration.TrackerMemory persists the last
+        // tracker joined per zone (see PluginWindow.SetConnection) along with the server ID it
+        // was on, so a matching server ID here means it's safe to silently rejoin instead of
+        // leaving the tab empty. No match (or first time ever) just adopts the current server ID
+        // as the baseline.
         private void HandleZoneEntry(int zoneIndex, ushort serverId)
         {
             CurrentZoneIndex = zoneIndex;
@@ -126,8 +131,25 @@ namespace EurekaHelper.System
             var lastServerId = LastServerIdPerZone[zoneIndex];
             LastServerIdPerZone[zoneIndex] = serverId;
 
-            if (lastServerId != 0 && lastServerId != serverId)
-                _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
+            if (lastServerId != 0)
+            {
+                if (lastServerId != serverId)
+                    _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
+                return;
+            }
+
+            var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
+            if (!connection.IsConnected() &&
+                EurekaHelper.Config.TrackerMemory.TryGetValue(zoneIndex, out var memory) &&
+                memory.ServerId == serverId &&
+                !string.IsNullOrWhiteSpace(memory.Code))
+            {
+                _ = Task.Run(async () =>
+                {
+                    var rejoined = await EurekaConnectionManager.JoinTracker(memory.Code, memory.Password);
+                    EurekaHelper.Plugin.PluginWindow.SetConnection(zoneIndex, rejoined);
+                });
+            }
         }
 
         // Closes and rejoins a zone's tracker using the same code/password it already had - used

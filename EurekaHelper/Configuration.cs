@@ -123,6 +123,16 @@ namespace EurekaHelper
         public bool AutoOpenRelicWindowInEureka = false;
 
         /*
+         * Per-zone tracker memory: the last tracker (code/password) connected in each Eureka
+         * zone, keyed by zone index (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos - see
+         * Utils.GetIndexOfZone), plus the server ID it was joined on. Persisted so a plugin
+         * reload/restart can silently rejoin the same tracker on returning to a zone whose
+         * server ID still matches, instead of leaving that zone's tab empty. See
+         * System/ZoneManager.cs for the reconnect logic.
+         */
+        public Dictionary<int, TrackerMemoryEntry> TrackerMemory = new();
+
+        /*
          * Server ID Configurations
          */
         public bool DisplayServerId = false;
@@ -156,5 +166,13 @@ namespace EurekaHelper
         public List<EurekaAlarm> Alarms { get; set; } = new();
 
         public void Save() => DalamudApi.PluginInterface.SavePluginConfig(this);
+    }
+
+    [Serializable]
+    public class TrackerMemoryEntry
+    {
+        public string Code = string.Empty;
+        public string Password = string.Empty;
+        public ushort ServerId;
     }
 }

@@ -43,7 +43,24 @@ namespace EurekaHelper.Windows
 
         public EurekaConnectionManager GetConnection(int zoneIndex) => Connections[zoneIndex] ??= new EurekaConnectionManager();
 
-        public void SetConnection(int zoneIndex, EurekaConnectionManager connection) => Connections[zoneIndex] = connection;
+        // The single funnel point for replacing a zone's connection - also persists it into
+        // Configuration.TrackerMemory (code/password/server ID) so a plugin reload/restart can
+        // silently rejoin it later (see ZoneManager.HandleZoneEntry).
+        public void SetConnection(int zoneIndex, EurekaConnectionManager connection)
+        {
+            Connections[zoneIndex] = connection;
+
+            if (connection == null || !connection.IsConnected())
+                return;
+
+            EurekaHelper.Config.TrackerMemory[zoneIndex] = new TrackerMemoryEntry
+            {
+                Code = connection.GetTrackerId(),
+                Password = connection.CanModify() ? connection.GetTrackerPassword() : string.Empty,
+                ServerId = ZoneManager.GetLastServerId(zoneIndex),
+            };
+            EurekaHelper.Config.Save();
+        }
 
         public void Dispose()
         {
@@ -367,14 +384,17 @@ namespace EurekaHelper.Windows
                             {
                                 if (conn.IsConnected() && !conn.CanModify() &&
                                     !string.IsNullOrWhiteSpace(enteredPassword))
+                                {
                                     await conn.SetPassword(enteredPassword);
+                                    SetConnection(zoneIndex, conn);
+                                }
                             }
                             else
                             {
                                 if (conn.IsConnected())
                                     await conn.Close();
 
-                                Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(enteredCode, enteredPassword);
+                                SetConnection(zoneIndex, await EurekaConnectionManager.JoinTracker(enteredCode, enteredPassword));
                             }
                         });
                     }
@@ -407,7 +427,7 @@ namespace EurekaHelper.Windows
 
             TrackerCodeInputs[zoneId] = trackerId;
             TrackerPasswordInputs[zoneId] = password;
-            Connections[zoneId] = await EurekaConnectionManager.JoinTracker(trackerId, password);
+            SetConnection(zoneId, await EurekaConnectionManager.JoinTracker(trackerId, password));
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
@@ -430,7 +450,7 @@ namespace EurekaHelper.Windows
 
             TrackerCodeInputs[zoneIndex] = trackerId;
             TrackerPasswordInputs[zoneIndex] = password;
-            Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(trackerId, password);
+            SetConnection(zoneIndex, await EurekaConnectionManager.JoinTracker(trackerId, password));
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
