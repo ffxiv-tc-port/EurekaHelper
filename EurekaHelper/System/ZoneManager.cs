@@ -4,6 +4,7 @@ using Dalamud.Logging;
 using Dalamud.Memory;
 using Dalamud.Utility.Signatures;
 using System;
+using System.Threading.Tasks;
 
 namespace EurekaHelper.System
 {
@@ -11,6 +12,11 @@ namespace EurekaHelper.System
     {
         private delegate nint InitZoneDelegate(nint a1, int a2, nint a3);
         private readonly IDtrBarEntry _dtrBarEntry;
+
+        // Which zone tracker (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos, 0=none) is currently the
+        // "active" one for auto-remember/reconnect purposes, and the server ID it was joined on.
+        private int _activeZoneIndex;
+        private ushort _activeServerId;
 
         public ZoneManager()
         {
@@ -68,6 +74,8 @@ namespace EurekaHelper.System
                             _dtrBarEntry.Shown = true;
                         }
                     }
+
+                    HandleTrackerAutoReconnect(Utils.GetIndexOfZone(zoneId), serverId);
                 }
                 else
                 {
@@ -76,6 +84,8 @@ namespace EurekaHelper.System
                         _dtrBarEntry.Text = "";
                         _dtrBarEntry.Shown = false;
                     }
+
+                    HandleTrackerAutoReconnect(0, 0);
                 }
             }
             catch (Exception ex)
@@ -84,6 +94,47 @@ namespace EurekaHelper.System
             }
 
             return InitZoneHook.Original(a1, a2, a3);
+        }
+
+        // Since you can only be in one map at a time, there's no need to stay connected to more
+        // than one zone's tracker simultaneously. On leaving a zone, remember what tracker was
+        // connected there (and the server ID it was on) so returning to the same zone on the
+        // same server ID can silently rejoin it instead of leaving the tab disconnected.
+        private void HandleTrackerAutoReconnect(int newZoneIndex, ushort newServerId)
+        {
+            if (_activeZoneIndex == newZoneIndex)
+                return;
+
+            if (_activeZoneIndex is >= 1 and <= 4)
+            {
+                var oldConnection = EurekaHelper.Plugin.PluginWindow.GetConnection(_activeZoneIndex);
+                if (oldConnection.IsConnected())
+                {
+                    EurekaHelper.Config.TrackerMemory[_activeZoneIndex] = new TrackerMemoryEntry
+                    {
+                        Code = oldConnection.GetTrackerId(),
+                        Password = oldConnection.CanModify() ? oldConnection.GetTrackerPassword() : string.Empty,
+                        ServerId = _activeServerId,
+                    };
+                    EurekaHelper.Config.Save();
+                    _ = Task.Run(oldConnection.Close);
+                }
+            }
+
+            _activeZoneIndex = newZoneIndex;
+            _activeServerId = newServerId;
+
+            if (newZoneIndex is >= 1 and <= 4 &&
+                EurekaHelper.Config.TrackerMemory.TryGetValue(newZoneIndex, out var memory) &&
+                memory.ServerId == newServerId &&
+                !string.IsNullOrWhiteSpace(memory.Code))
+            {
+                _ = Task.Run(async () =>
+                {
+                    var connection = await EurekaConnectionManager.JoinTracker(memory.Code, memory.Password);
+                    EurekaHelper.Plugin.PluginWindow.SetConnection(newZoneIndex, connection);
+                });
+            }
         }
 
         public void Dispose()

@@ -27,7 +27,23 @@ namespace EurekaHelper.Windows
                 { MinimumSize = new Vector2(566, 520), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
         }
 
-        private static EurekaConnectionManager Connection = new();
+        // Index 1-4 = Anemos/Pagos/Pyros/Hydatos (see Utils.GetIndexOfZone). Each zone keeps its
+        // own independent tracker connection/UI state - you're never expected to be connected to
+        // more than one at a time (can't be in two maps at once), but switching zone tabs (or
+        // ZoneManager auto-reconnecting on zone entry) shouldn't lose what was set up for the
+        // others.
+        private static readonly EurekaConnectionManager[] Connections = new EurekaConnectionManager[5];
+        private int SelectedTrackerZoneIndex = 1;
+
+        private EurekaConnectionManager Connection
+        {
+            get => Connections[SelectedTrackerZoneIndex] ??= new EurekaConnectionManager();
+            set => Connections[SelectedTrackerZoneIndex] = value;
+        }
+
+        public EurekaConnectionManager GetConnection(int zoneIndex) => Connections[zoneIndex] ??= new EurekaConnectionManager();
+
+        public void SetConnection(int zoneIndex, EurekaConnectionManager connection) => Connections[zoneIndex] = connection;
 
         public void Dispose()
         {
@@ -86,7 +102,26 @@ namespace EurekaHelper.Windows
         private float DebugThickness = 2f;
         private string DebugBossNameOverride = string.Empty;
 
-        public async void DrawTrackerTab()
+        public void DrawTrackerTab()
+        {
+            if (ImGui.BeginTabBar("EHelperTrackerZoneTab"))
+            {
+                for (var zoneIndex = 1; zoneIndex <= Constants.EurekaZones.Length; zoneIndex++)
+                {
+                    var zoneName = Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]);
+                    if (ImGui.BeginTabItem(zoneName))
+                    {
+                        SelectedTrackerZoneIndex = zoneIndex;
+                        DrawTrackerZoneTab();
+                        ImGui.EndTabItem();
+                    }
+                }
+
+                ImGui.EndTabBar();
+            }
+        }
+
+        public async void DrawTrackerZoneTab()
         {
             ImGui.AlignTextToFramePadding();
             ImGui.Text(Loc.Text("Settings:"));
@@ -96,43 +131,12 @@ namespace EurekaHelper.Windows
 
             if (!Connection.IsConnected())
             {
+                // Each tab is already scoped to a single zone, so there's no need to pick which
+                // zone's tracker to create - just create one for whichever tab is currently open.
+                var zoneIndex = SelectedTrackerZoneIndex;
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
-                    ImGui.OpenPopup("CreateTracker");
+                    _ = Task.Run(async () => { await CreateTracker(zoneIndex); });
                 Utils.SetTooltip(Loc.Text("Create a new tracker"));
-
-                ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
-                ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
-                if (ImGui.BeginPopup("CreateTracker"))
-                {
-                    if (ImGui.Button(Loc.Text("Create Anemos Tracker")))
-                    {
-                        _ = Task.Run(async () => { await CreateTracker(1); });
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    if (ImGui.Button(Loc.Text("Create Pagos Tracker")))
-                    {
-                        _ = Task.Run(async () => { await CreateTracker(2); });
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    if (ImGui.Button(Loc.Text("Create Pyros Tracker")))
-                    {
-                        _ = Task.Run(async () => { await CreateTracker(3); });
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    if (ImGui.Button(Loc.Text("Create Hydatos Tracker")))
-                    {
-                        _ = Task.Run(async () => { await CreateTracker(4); });
-                        ImGui.CloseCurrentPopup();
-                    }
-
-                    ImGui.EndPopup();
-                }
-
-                ImGui.PopStyleVar();
-                ImGui.PopStyleColor();
             }
 
             else if (Connection.IsConnected())
@@ -191,7 +195,11 @@ namespace EurekaHelper.Windows
                 ImGui.SameLine();
 
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.FileExport))
-                    _ = Task.Run(async () => { await ExportTracker(Connection.GetTrackerId()); });
+                {
+                    var zoneIndex = SelectedTrackerZoneIndex;
+                    var oldTrackerId = Connection.GetTrackerId();
+                    _ = Task.Run(async () => { await ExportTracker(zoneIndex, oldTrackerId); });
+                }
                 Utils.SetTooltip(Loc.Text("Exports the current tracker to a new one"));
 
                 ImGui.SameLine();
@@ -317,20 +325,26 @@ namespace EurekaHelper.Windows
                 {
                     if (!string.IsNullOrWhiteSpace(TrackerCode))
                     {
+                        // Capture which zone tab this was clicked from now (synchronously) rather
+                        // than reading SelectedTrackerZoneIndex again once the await completes -
+                        // the user may have switched tabs by then, which would otherwise silently
+                        // apply the result to the wrong zone's connection.
+                        var zoneIndex = SelectedTrackerZoneIndex;
+                        var conn = Connections[zoneIndex] ??= new EurekaConnectionManager();
                         _ = Task.Run(async () =>
                         {
-                            if (Connection.GetTrackerId() == TrackerCode)
+                            if (conn.GetTrackerId() == TrackerCode)
                             {
-                                if (Connection.IsConnected() && !Connection.CanModify() &&
+                                if (conn.IsConnected() && !conn.CanModify() &&
                                     !string.IsNullOrWhiteSpace(TrackerPassword))
-                                    await Connection.SetPassword(TrackerPassword);
+                                    await conn.SetPassword(TrackerPassword);
                             }
                             else
                             {
-                                if (Connection.IsConnected())
-                                    await Connection.Close();
+                                if (conn.IsConnected())
+                                    await conn.Close();
 
-                                Connection = await EurekaConnectionManager.JoinTracker(TrackerCode, TrackerPassword);
+                                Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(TrackerCode, TrackerPassword);
                             }
                         });
                     }
@@ -357,19 +371,20 @@ namespace EurekaHelper.Windows
                 return;
             }
 
-            if (Connection.IsConnected())
-                await Connection.Close();
+            var existing = Connections[zoneId];
+            if (existing != null && existing.IsConnected())
+                await existing.Close();
 
             TrackerCode = trackerId;
             TrackerPassword = password;
-            Connection = await EurekaConnectionManager.JoinTracker(trackerId, password);
+            Connections[zoneId] = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
                     Loc.Format("Successfully created a tracker: {0}", Utils.CombineUrl(Constants.EurekaTrackerLink, trackerId)));
         }
 
-        public async Task ExportTracker(string oldTrackerId, bool printMessage = false)
+        public async Task ExportTracker(int zoneIndex, string oldTrackerId, bool printMessage = false)
         {
             (string trackerId, string password) = await EurekaConnectionManager.ExportTracker(oldTrackerId);
 
@@ -379,12 +394,13 @@ namespace EurekaHelper.Windows
                 return;
             }
 
-            if (Connection.IsConnected())
-                await Connection.Close();
+            var existing = Connections[zoneIndex];
+            if (existing != null && existing.IsConnected())
+                await existing.Close();
 
             TrackerCode = trackerId;
             TrackerPassword = password;
-            Connection = await EurekaConnectionManager.JoinTracker(trackerId, password);
+            Connections[zoneIndex] = await EurekaConnectionManager.JoinTracker(trackerId, password);
 
             if (printMessage)
                 EurekaHelper.PrintMessage(
@@ -1428,7 +1444,24 @@ namespace EurekaHelper.Windows
             }
         }
 
-        public static EurekaConnectionManager GetConnection() => Connection;
+        // Resolves to whichever zone's connection matches the player's current territory (falling
+        // back to slot 1 if not currently in a Eureka zone, e.g. during plugin shutdown) - used by
+        // callers like FateManager that care about "the tracker for wherever I am right now"
+        // rather than a specific zone tab.
+        public static EurekaConnectionManager GetConnection()
+        {
+            var zoneIndex = Utils.GetIndexOfZone(DalamudApi.ClientState.TerritoryType);
+            if (zoneIndex is < 1 or > 4)
+                zoneIndex = 1;
+
+            return Connections[zoneIndex] ??= new EurekaConnectionManager();
+        }
+
+        public static void DisposeAllConnections()
+        {
+            foreach (var connection in Connections)
+                connection?.Dispose();
+        }
 
         private unsafe int IntegerCheck(ImGuiInputTextCallbackData* data)
         {

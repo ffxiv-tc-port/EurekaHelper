@@ -253,7 +253,7 @@ namespace EurekaHelper;
             InventoryManager.Dispose();
             AlarmManager.Dispose();
             SplatoonManager?.Dispose();
-            PluginWindow.GetConnection().Dispose();
+            PluginWindow.DisposeAllConnections();
             DalamudApi.PluginInterface.RemoveChatLinkHandler();
             DalamudApi.ClientState.Login -= OnLogin;
         }
