@@ -134,14 +134,28 @@ namespace EurekaHelper.Windows
         private float DebugThickness = 2f;
         private string DebugBossNameOverride = string.Empty;
 
+        // Tracks which zone we last auto-switched the tab bar for, so the jump only happens once
+        // per zone entry (edge-triggered off ZoneManager.CurrentZoneIndex) rather than fighting
+        // the user every frame if they manually click a different tab afterwards.
+        private int _lastAutoSwitchedZoneIndex;
+
         public void DrawTrackerTab()
         {
+            var autoSwitchToZoneIndex = -1;
+            if (ZoneManager.CurrentZoneIndex is >= 1 and <= 4 && ZoneManager.CurrentZoneIndex != _lastAutoSwitchedZoneIndex)
+            {
+                autoSwitchToZoneIndex = ZoneManager.CurrentZoneIndex;
+                _lastAutoSwitchedZoneIndex = ZoneManager.CurrentZoneIndex;
+            }
+
             if (ImGui.BeginTabBar("EHelperTrackerZoneTab"))
             {
                 for (var zoneIndex = 1; zoneIndex <= Constants.EurekaZones.Length; zoneIndex++)
                 {
                     var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
-                    if (ImGui.BeginTabItem(zoneName))
+                    var flags = zoneIndex == autoSwitchToZoneIndex ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+                    var tabOpen = true;
+                    if (ImGui.BeginTabItem(zoneName, ref tabOpen, flags))
                     {
                         SelectedTrackerZoneIndex = zoneIndex;
                         DrawTrackerZoneTab();
