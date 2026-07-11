@@ -13,13 +13,14 @@ namespace EurekaHelper.System
         private delegate nint InitZoneDelegate(nint a1, int a2, nint a3);
         private readonly IDtrBarEntry _dtrBarEntry;
 
-        // Which zone tracker (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos, 0=none) is currently the
-        // "active" one for auto-remember/reconnect purposes, and the server ID it was joined on.
-        // Exposed publicly too so the UI can show "which server ID am I actually on right now"
-        // (e.g. next to the tracker's viewer count) without duplicating the InitZoneDetour hook.
-        private int _activeZoneIndex;
-        private ushort _activeServerId;
+        // Last known server ID seen for each zone (index 1-4 = Anemos/Pagos/Pyros/Hydatos, 0
+        // unused), session-scoped only. Used purely to detect "this is a different running
+        // instance than last time I was here" - not persisted, since a fresh plugin load has no
+        // prior instance to compare against anyway.
+        private readonly ushort[] _lastServerIdPerZone = new ushort[5];
 
+        // Exposed publicly so the UI can show "which server ID am I actually on right now" (e.g.
+        // next to the tracker's viewer count) without duplicating the InitZoneDetour hook.
         public static int CurrentZoneIndex { get; private set; }
         public static ushort CurrentServerId { get; private set; }
 
@@ -80,7 +81,7 @@ namespace EurekaHelper.System
                         }
                     }
 
-                    HandleTrackerAutoReconnect(Utils.GetIndexOfZone(zoneId), serverId);
+                    HandleZoneEntry(Utils.GetIndexOfZone(zoneId), serverId);
                 }
                 else
                 {
@@ -90,7 +91,8 @@ namespace EurekaHelper.System
                         _dtrBarEntry.Shown = false;
                     }
 
-                    HandleTrackerAutoReconnect(0, 0);
+                    CurrentZoneIndex = 0;
+                    CurrentServerId = 0;
                 }
             }
             catch (Exception ex)
@@ -101,48 +103,46 @@ namespace EurekaHelper.System
             return InitZoneHook.Original(a1, a2, a3);
         }
 
-        // Since you can only be in one map at a time, there's no need to stay connected to more
-        // than one zone's tracker simultaneously. On leaving a zone, remember what tracker was
-        // connected there (and the server ID it was on) so returning to the same zone on the
-        // same server ID can silently rejoin it instead of leaving the tab disconnected.
-        private void HandleTrackerAutoReconnect(int newZoneIndex, ushort newServerId)
+        // Leaving a zone no longer touches its tracker connection at all - you can zone in and
+        // out of the same instance repeatedly without losing it. On entering a zone, only
+        // rebuild the connection if the server ID differs from last time we saw this zone,
+        // meaning it's actually a different running instance now (so the existing tracker no
+        // longer reflects reality). If this zone has no recorded server ID yet (first time this
+        // session), just adopt the current one as the baseline rather than treating it as a
+        // mismatch.
+        private void HandleZoneEntry(int zoneIndex, ushort serverId)
         {
-            CurrentZoneIndex = newZoneIndex;
-            CurrentServerId = newServerId;
+            CurrentZoneIndex = zoneIndex;
+            CurrentServerId = serverId;
 
-            if (_activeZoneIndex == newZoneIndex)
+            if (zoneIndex is < 1 or > 4)
                 return;
 
-            if (_activeZoneIndex is >= 1 and <= 4)
-            {
-                var oldConnection = EurekaHelper.Plugin.PluginWindow.GetConnection(_activeZoneIndex);
-                if (oldConnection.IsConnected())
-                {
-                    EurekaHelper.Config.TrackerMemory[_activeZoneIndex] = new TrackerMemoryEntry
-                    {
-                        Code = oldConnection.GetTrackerId(),
-                        Password = oldConnection.CanModify() ? oldConnection.GetTrackerPassword() : string.Empty,
-                        ServerId = _activeServerId,
-                    };
-                    EurekaHelper.Config.Save();
-                    _ = Task.Run(oldConnection.Close);
-                }
-            }
+            var lastServerId = _lastServerIdPerZone[zoneIndex];
+            _lastServerIdPerZone[zoneIndex] = serverId;
 
-            _activeZoneIndex = newZoneIndex;
-            _activeServerId = newServerId;
+            if (lastServerId != 0 && lastServerId != serverId)
+                RebuildTrackerConnection(zoneIndex);
+        }
 
-            if (newZoneIndex is >= 1 and <= 4 &&
-                EurekaHelper.Config.TrackerMemory.TryGetValue(newZoneIndex, out var memory) &&
-                memory.ServerId == newServerId &&
-                !string.IsNullOrWhiteSpace(memory.Code))
+        // Closes and rejoins a zone's tracker using the same code/password it already had -
+        // used both automatically (server ID mismatch on zone entry) and manually (a "rebuild"
+        // button in the Tracker tab, for when the connection just seems stuck/stale). No-op if
+        // that zone isn't currently connected to anything.
+        public static void RebuildTrackerConnection(int zoneIndex)
+        {
+            var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
+            if (!connection.IsConnected())
+                return;
+
+            var code = connection.GetTrackerId();
+            var password = connection.CanModify() ? connection.GetTrackerPassword() : string.Empty;
+            _ = Task.Run(async () =>
             {
-                _ = Task.Run(async () =>
-                {
-                    var connection = await EurekaConnectionManager.JoinTracker(memory.Code, memory.Password);
-                    EurekaHelper.Plugin.PluginWindow.SetConnection(newZoneIndex, connection);
-                });
-            }
+                await connection.Close();
+                var rejoined = await EurekaConnectionManager.JoinTracker(code, password);
+                EurekaHelper.Plugin.PluginWindow.SetConnection(zoneIndex, rejoined);
+            });
         }
 
         public void Dispose()

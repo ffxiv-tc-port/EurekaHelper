@@ -219,6 +219,12 @@ namespace EurekaHelper.Windows
 
                 ImGui.SameLine();
 
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Sync))
+                    ZoneManager.RebuildTrackerConnection(SelectedTrackerZoneIndex);
+                Utils.SetTooltip(Loc.Text("Rebuild tracker connection"));
+
+                ImGui.SameLine();
+
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.SignOutAlt))
                 {
                     _ = Task.Run(async () => { await Connection.Close(); });

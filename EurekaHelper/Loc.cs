@@ -780,6 +780,7 @@ internal static class Loc
 		["Set tracker to public"] = "將追蹤器設為公開",
 		["Opens the tracker in a browser"] = "在瀏覽器開啟追蹤器",
 		["Exports the current tracker to a new one"] = "將目前追蹤器匯出成新的追蹤器",
+		["Rebuild tracker connection"] = "重建追蹤器連線",
 		["Leave the current tracker"] = "離開目前追蹤器",
 		["This datacenter is not supported currently. Please submit an issue if you think this is incorrect."] = "目前不支援此資料中心。如果你認為這有誤，請提交 issue。",
 		["E.T:"] = "艾奧傑亞時間：",
