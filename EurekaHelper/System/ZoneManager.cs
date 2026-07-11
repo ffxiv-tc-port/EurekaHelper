@@ -14,10 +14,13 @@ namespace EurekaHelper.System
         private readonly IDtrBarEntry _dtrBarEntry;
 
         // Last known server ID seen for each zone (index 1-4 = Anemos/Pagos/Pyros/Hydatos, 0
-        // unused), session-scoped only. Used purely to detect "this is a different running
-        // instance than last time I was here" - not persisted, since a fresh plugin load has no
-        // prior instance to compare against anyway.
-        private readonly ushort[] _lastServerIdPerZone = new ushort[5];
+        // unused), session-scoped only (not persisted - a fresh plugin load has no prior instance
+        // to compare against anyway). Used both to detect "this is a different running instance
+        // than last time I was here", and so the UI can keep showing a zone's last-known server
+        // ID in its tracker header even after you've left that zone, instead of it disappearing.
+        private static readonly ushort[] LastServerIdPerZone = new ushort[5];
+
+        public static ushort GetLastServerId(int zoneIndex) => LastServerIdPerZone[zoneIndex];
 
         // Exposed publicly so the UI can show "which server ID am I actually on right now" (e.g.
         // next to the tracker's viewer count) without duplicating the InitZoneDetour hook.
@@ -120,8 +123,8 @@ namespace EurekaHelper.System
             if (zoneIndex is < 1 or > 4)
                 return;
 
-            var lastServerId = _lastServerIdPerZone[zoneIndex];
-            _lastServerIdPerZone[zoneIndex] = serverId;
+            var lastServerId = LastServerIdPerZone[zoneIndex];
+            LastServerIdPerZone[zoneIndex] = serverId;
 
             if (lastServerId != 0 && lastServerId != serverId)
                 _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
