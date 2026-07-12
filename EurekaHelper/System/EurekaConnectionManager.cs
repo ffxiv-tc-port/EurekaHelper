@@ -234,7 +234,7 @@ namespace EurekaHelper.System
                 {
                     await Task.Delay(TimeSpan.FromSeconds(30), CancellationTokenSource.Token);
                     await SendHeartbeat();
-                    DalamudApi.Log.Debug("Sending Heartbeat");
+                    DalamudApi.Log.Verbose("Sending Heartbeat");
                 }
             }, CancellationTokenSource.Token);
         }
