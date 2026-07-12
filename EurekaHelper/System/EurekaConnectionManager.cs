@@ -32,6 +32,17 @@ namespace EurekaHelper.System
         private int Viewers;
         private IEurekaTracker Tracker;
 
+        // Join() only awaits the outgoing "phx_join" send completing - the server's actual
+        // accept/reject reply arrives later, asynchronously, on the separate Receive() loop
+        // (started fire-and-forget from Connect()). Without this, JoinTracker()'s caller sees
+        // IsConnected() == false immediately after awaiting it (the reply hasn't arrived yet),
+        // which silently broke PluginWindow.SetConnection's "only persist TrackerMemory if
+        // actually connected" check - the tracker worked fine once the reply did arrive a few
+        // hundred ms later, but by then nothing was listening to persist it, so a plugin reload
+        // could never find anything to rejoin. Completed from the Receive() loop below on either
+        // the success ("initial_payload") or failure (error "phx_reply") path.
+        private TaskCompletionSource<bool> _joinCompletionSource;
+
         public EurekaConnectionManager()
         {
             ClientWebSocket = new();
@@ -127,12 +138,14 @@ namespace EurekaHelper.System
                                     DalamudApi.Log.Information("Invalid instance. Closing connection");
 
                                     Invalid = true;
+                                    _joinCompletionSource?.TrySetResult(false);
                                     await Close();
                                     break;
                                 }
                             }
 
                             DalamudApi.Log.Information($"Received status: \"{message.Payload["status"]}\" and response: \"{message.Payload["response"]["reason"]}\". Closing connection");
+                            _joinCompletionSource?.TrySetResult(false);
                             await Close();
                             break;
                         }
@@ -177,6 +190,7 @@ namespace EurekaHelper.System
 
                         Invalid = false;
                         Connected = true;
+                        _joinCompletionSource?.TrySetResult(true);
 
                         break;
 
@@ -218,6 +232,8 @@ namespace EurekaHelper.System
 
         public async Task Join(string trackerId, string password = null)
         {
+            _joinCompletionSource = new TaskCompletionSource<bool>();
+
             EurekaTrackerMessage eurekaTrackerMessage = new(
                 true,
                 ++MessageId,
@@ -226,6 +242,15 @@ namespace EurekaHelper.System
                 String.IsNullOrWhiteSpace(password) ? new JObject() : JObject.Parse(@$"{{ 'password': '{password}' }}"));
 
             await Send(eurekaTrackerMessage.ToMessage());
+
+            // Wait for the server's actual accept/reject reply (see _joinCompletionSource's
+            // comment) instead of returning as soon as the request is sent - callers like
+            // PluginWindow.SetConnection check IsConnected() the moment this returns, and need
+            // that to reflect reality, not "request sent, response pending". Capped so a
+            // never-replying server can't hang the caller forever.
+            var completed = await Task.WhenAny(_joinCompletionSource.Task, Task.Delay(TimeSpan.FromSeconds(10), CancellationTokenSource.Token));
+            if (completed != _joinCompletionSource.Task)
+                DalamudApi.Log.Warning($"[EurekaConnectionManager] Join timed out waiting for server reply for tracker {trackerId}");
 
             // Send heartbeat every 30s after joining
             _ = Task.Run(async () =>

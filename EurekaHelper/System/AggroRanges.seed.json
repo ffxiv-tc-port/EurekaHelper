@@ -1,0 +1,3172 @@
+{
+  "3號哥布林裝甲E型": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "丁格犬": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "不祥的羽毛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "亞卡內": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "亞瑟羅王": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "亞靈神巴哈姆特": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "仙人掌怪流浪樂隊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "伊麗絲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "伊麗絲之淚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "佛勞洛斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "來薩特": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "修驗天狗": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "倖存盲頭蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "傭兵雷姆普里克斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "優雷卡死亡凝視": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "優雷卡聖牛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "冰島元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "冰皮毒蜥蜴": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "冰霜明膠怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "冰霜龍鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "凋零山克芹尼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "凶殘魯斯索爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "劍角龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "劍齒象": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "化石暴龍": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "北境浮蝶": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "北境灰熊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "北境獅鷲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "北境蜂鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "北境魟": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "北境鹽藍燕": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "北方猛虎": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "卡拉墨魚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "古德斯德": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 6.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "古老古卜": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "古老水牛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "古老貪吃鬼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "哈奧卡首領": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "哲學阿班達": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "啜泣百目妖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "四眼怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "垂柳樹人": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "塔克西姆": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "塔克西姆的奴隸": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "墓地守衛": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "多彩冠恐鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "大安菲瑟龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "婁希": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "孤獨象魔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "守護者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "完美水球": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "寇里多仙人掌怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "寒冰魔鏡騎士": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "實驗體": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "山谷蠍尾獅": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "岩石塊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "左米特": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "巨水蛇": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "巨螺蝓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "巴欽大公爵": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "帕祖祖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "帕祖祖的信徒": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "帕祖祖的祭司": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "常風元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "常風畢托所": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 6.4,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "常風苔小妖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "幸福兔": [
+    {
+      "Type": 4,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090519039,
+      "Thickness": 2.0
+    }
+  ],
+  "庭園守衛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "強腕屍人兵": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "彩虹的碎片": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "彭忒西勒亞": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "徒步花苗": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "徘徊哈奧卡": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "徘徊歐浦肯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "徘徊的亡者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "怖鱷": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰公山羊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰半人馬": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰圖蘇斯水龍蜥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰巨熊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰巨鱷": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰深瞳": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰牛羚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰白狼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰聖靈": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰跳蜥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰阿努比斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恆冰駿雕": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "恒冰屍骸": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "恒冰阿納拉": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "惡魔聖靈": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "愚火": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "戈爾德馬爾王": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "抽泣花苗": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "搏鬥魔石精": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "摩洛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "摩洛的追隨者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "斯庫爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "暗影幽靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑帕爾忒諾珀": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑石像鬼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑虛無鬼魚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑行吟者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑風箏貓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "暗黑騎手": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "暴雪古卜": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "曙象": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 6.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "未知食人魔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "格拉菲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "格拉菲亞卡內": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "棺材守衛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "樵夫傑科": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "武士腐屍": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "死亡元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 17.5,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "死魂": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "殭屍布羅賓雅克": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "毒手屍人兵": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "水晶爪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "泡泡": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "泰坦-艾基": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "浮游幼體": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "海棲馬": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湖畔蝦蛄": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火南加": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火史萊姆": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火天仙子": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火夸爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火寶石魔像": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火小精怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火巨木魔像": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火巨水蛇": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火巨蟒": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火布丁": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火帕爾忒諾珀": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火幽靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火恐甲螞蜓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火樹妖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火浮靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火海石龜": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火炸彈魚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火狗靈": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火狼獾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火白狼": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火百目妖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火硬木魔像": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火礦怪蟲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火聖靈": [
+    {
+      "Type": 4,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090519039,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火蛞蝓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火阿班達": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火鷹蜂": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "湧火龍蝦": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "滴水石像鬼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "滾滾葉小妖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "火巨人": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "火焰之翼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "灰燼龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "烏洛里石守衛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "無魂代理人": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "無魂冒險者": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "無魂尋路人": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "無魂搜尋者": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "爆殼怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "牛頭魔看守": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "牛頭魔長老": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "珊瑚烏菊石": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "珍卷惡魔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "琉科西亞": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾亡魂": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾利螯陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾南加": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾妖影": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾嬰猴": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾守衛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾寒冰陷阱草": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾尤彌爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾屍生花": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾巨熊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾巨猿": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾幽靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾斯卡尼特": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾沙蚤": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾火尾飛蜥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾爛泥食腐獸": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾犀鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾獅鷲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾獨爪妖禽": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾皮拉魚": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾禍蛛蠍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾米諾陶洛斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾維京人偶": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾羚羊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾腐屍": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾蜘蛛": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾螳螂": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾蟻": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾血飛蛾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾長毛象": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾雪人": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瓦爾鼴鼠": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "生鏽恐慌裝甲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瘤牛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "皮艾薩邪鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "瞪視之眼": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "短劍劍齒虎": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "研究所夸爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "研究所溝鼠": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "研究所米諾陶洛斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "研究所雄獅": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "研究所黑豺": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "硫化史萊姆": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "祖尼角龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 6.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "穢濁阿帕斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "窮奇": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "築巢公雛鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "築巢祖": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "紅焰": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "純白": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "脫逃暴龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "自走人偶013BL": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "自走人偶守護者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "致命渡渡鳥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "舊日之影": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "艾托洛斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "艾歐晶片": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "莽撞水龍蜥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "藍焰": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "藻馬": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "蘇羅毗": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "虎鷹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無冰雪龍": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無小龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無巨蠅": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無希里科塔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無薇薇爾飛龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無雙足飛龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛無鱗龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 6.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛空炎龍": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "虛空薇薇爾飛龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "虛空遠古之龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "融雪元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "複製僧伽": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "複製魔花凱西": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "詭異的羽毛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "詭辯者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "變色土龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "變色水龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "變色風龍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水夜蟾蜍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水奇納哈爾鳥妖": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水巨猿": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水巫妖": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水布丁": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水席茲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水幽靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水曙象": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水榴彈怪": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水毒蜥蜴": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水水龍蜥": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水爆殼怪": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水瘤牛": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水睡龍": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水聖靈": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水蛞蝓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水達菲妮": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水魔界花": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1073807359,
+      "Thickness": 2.0
+    }
+  ],
+  "豐水魔陸魚": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "赤目墨水瓶": [
+    {
+      "Type": 0,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 4278255615,
+      "Thickness": 2.0
+    }
+  ],
+  "迪戈泰塔斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "迷途利螯陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "迷途哈奧卡": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "迷途托爾": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "追蹤席茲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "速射屍人兵": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "過期魔導書": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "達佛涅": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "達佛涅的觸手": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "達菲妮": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "遺棄象魔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "野樹靈": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "鉤蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "鋒螯陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "長臂猿": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "閃電督軍": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "阿尼祿": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "阿斯卡拉福斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "阿米雷戴": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "阿蔔拉克薩斯": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "除霜爬蟲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "陰·陽": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "陸蟹騎士": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "離群利螯陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "離群大螯陸蟹": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雪地海月水母": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雪地蛞蝓": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雪暴元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "雪球": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雪童子": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "雷暴元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "雷雲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雷電球": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "雷電雲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "霜鬃獵魔": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "青藍之手逃亡者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "風暴魟": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 8.5,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "颱風元精": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 10.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "食腐獅鷲": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "食葉蟲": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "食鳥者": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "餘光閃爍瑪塔蛇頸龜": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "餘燼元精": [
+    {
+      "Type": 2,
+      "Shape": 0,
+      "Radius": 20.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1090485799,
+      "Thickness": 2.0
+    }
+  ],
+  "鬼靈": [
+    {
+      "Type": 3,
+      "Shape": 0,
+      "Radius": 0.0,
+      "ConeHalfAngleDegrees": 60,
+      "Color": 1085276415,
+      "Thickness": 2.0
+    }
+  ],
+  "魔素風扇": [
+    {
+      "Type": 1,
+      "Shape": 0,
+      "Radius": 6.4,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 134217983,
+      "Thickness": 2.0
+    }
+  ],
+  "黃昏木乃伊": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ],
+  "龐巴德": [
+    {
+      "Type": 1,
+      "Shape": 1,
+      "Radius": 15.0,
+      "ConeHalfAngleDegrees": 45,
+      "Color": 218104063,
+      "Thickness": 2.0
+    }
+  ]
+}

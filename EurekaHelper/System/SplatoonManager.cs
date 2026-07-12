@@ -47,6 +47,14 @@ namespace EurekaHelper.System
             ["豐水睡龍"] = AggroType.Aural,       // Hydatos, Lv65 (Hydatos Void Dragon)
             ["豐水魔界花"] = AggroType.Aural,     // Hydatos, Lv58-60 (Hydatos Morbol)
 
+            // Sourced from a JP community Splatoon-layout blog post (actual in-game verified
+            // detection ranges, not a guess) - see System/AggroRanges.seed.json for the precise
+            // per-mob radius that came with these (this dict only carries the type).
+            ["常風畢托所"] = AggroType.Aural,     // Anemos (Anemos Pitho)
+            ["瓦爾螳螂"] = AggroType.Aural,       // Pyros (Val Mantis)
+            ["瓦爾鼴鼠"] = AggroType.Aural,       // Hydatos (Val Mole)
+            ["豐水榴彈怪"] = AggroType.Aural,     // Hydatos (Hydatos Squib)
+
             // 血量偵測型/夜間不死系 (Blood) - only spawn 18:00-06:00, infinite-aggro anyone
             // below ~30% HP regardless of facing/distance. Core counter: don't run around at
             // night below 30% HP.
@@ -59,6 +67,23 @@ namespace EurekaHelper.System
             ["豐水巫妖"] = AggroType.Blood,       // Hydatos (Hydatos Lich)
             ["實驗體"] = AggroType.Blood,         // Hydatos (Experimental Tomestones)
 
+            // Name-pattern based (屍人兵/幽靈/無魂/腐屍/殭屍 = corpse/soulless/carrion naming,
+            // matching the confirmed Blood-type mobs above) rather than individually source-
+            // verified - lower confidence than the JP-sourced Aural entries above, but still
+            // higher confidence than leaving them at the Visual default.
+            ["速射屍人兵"] = AggroType.Blood,
+            ["毒手屍人兵"] = AggroType.Blood,
+            ["強腕屍人兵"] = AggroType.Blood,
+            ["湧火幽靈"] = AggroType.Blood,
+            ["豐水幽靈"] = AggroType.Blood,
+            ["暗影幽靈"] = AggroType.Blood,
+            ["無魂搜尋者"] = AggroType.Blood,
+            ["無魂代理人"] = AggroType.Blood,
+            ["武士腐屍"] = AggroType.Blood,
+            ["殭屍布羅賓雅克"] = AggroType.Blood,
+            ["食腐獅鷲"] = AggroType.Blood,
+            ["瓦爾爛泥食腐獸"] = AggroType.Blood,
+
             // 魔法偵測型/元精系 (Magic) - only spawn in specific weather, aggro on any nearby
             // spell/magic-category action (including healing, Logos actions). Core counter:
             // don't cast anything near them.
@@ -66,6 +91,7 @@ namespace EurekaHelper.System
             ["冰島元精"] = AggroType.Magic,       // Pagos, Thunder/Blizzards
             ["湧火元精"] = AggroType.Magic,       // Pyros, Heat Waves/Fair Skies
             ["豐水元精"] = AggroType.Magic,       // Hydatos, Thunderstorms/Squall
+            ["死亡元精"] = AggroType.Magic,       // Hydatos (Death Sprite) - 元精 naming pattern, JP-sourced radius
         };
 
         private readonly string _configPath;
@@ -426,15 +452,62 @@ namespace EurekaHelper.System
         private void SaveConfig() =>
             File.WriteAllText(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
 
+        // Ships next to EurekaHelper.dll (see the csproj's <None Update="System\AggroRanges.seed.json">
+        // CopyToOutputDirectory entry) and is tracked in git, unlike the per-player runtime config
+        // this seeds - see that file's own header comment for how to re-sync it after curating more
+        // entries in-game via the Debug tab.
+        private const string SeedFileName = "AggroRanges.seed.json";
+
         private void EnsureConfigFileExists()
         {
             if (File.Exists(_configPath))
                 return;
 
-            // Seed data. Every Eureka mob defaults to Visual (sight) aggro if it's not listed
-            // here at all - that's the common case and not worth an entry per mob. Everything in
-            // KnownAggroNames is a documented exception, keyed by the actual TC Chinese display
-            // name (see that dictionary's comments for sourcing/reasoning per entry).
+            if (TrySeedFromBundledFile())
+                return;
+
+            SeedFromKnownAggroNamesOnly();
+        }
+
+        // Preferred path: copy the git-tracked, community-researched seed file shipped alongside
+        // the DLL. Falls back to the KnownAggroNames-only seed (see below) if it's missing or
+        // fails to parse, so a broken/missing seed file never blocks the plugin from working.
+        private bool TrySeedFromBundledFile()
+        {
+            try
+            {
+                var assemblyDir = Path.GetDirectoryName(DalamudApi.PluginInterface.AssemblyLocation.FullName);
+                if (assemblyDir == null)
+                    return false;
+
+                var bundledPath = Path.Combine(assemblyDir, "System", SeedFileName);
+                if (!File.Exists(bundledPath))
+                    return false;
+
+                var json = File.ReadAllText(bundledPath);
+                // Round-trip through the real model instead of a raw file copy, so a malformed
+                // seed file fails loudly here (falls back to KnownAggroNames) rather than writing
+                // garbage into the player's actual config.
+                var parsed = JsonConvert.DeserializeObject<Dictionary<string, List<AggroRangeConfig>>>(json);
+                if (parsed == null || parsed.Count == 0)
+                    return false;
+
+                File.WriteAllText(_configPath, JsonConvert.SerializeObject(parsed, Formatting.Indented));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[SplatoonManager] Failed to seed from bundled {SeedFileName}, falling back to KnownAggroNames-only seed");
+                return false;
+            }
+        }
+
+        // Original fallback seed: every Eureka mob defaults to Visual (sight) aggro if it's not
+        // listed here at all - that's the common case and not worth an entry per mob. Everything
+        // in KnownAggroNames is a documented exception, keyed by the actual TC Chinese display
+        // name (see that dictionary's comments for sourcing/reasoning per entry).
+        private void SeedFromKnownAggroNamesOnly()
+        {
             var seed = new Dictionary<string, List<AggroRangeConfig>>
             {
                 ["EXAMPLE - 沙巴頓仙人掌怪"] = new()

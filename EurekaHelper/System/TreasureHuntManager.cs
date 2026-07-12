@@ -1,0 +1,306 @@
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Text.RegularExpressions;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Utility;
+using ECommons;
+using ECommons.SplatoonAPI;
+using Lumina.Excel.Sheets;
+
+namespace EurekaHelper.System
+{
+    // 幸福兔 FATE 後取得的「幸運胡蘿蔔」，每次使用會在聊天視窗印出一則方位＋距離等級的提示
+    // （例："財寶好像是在西北方向稍遠的地方！"）。這個 class 監聽聊天訊息、記錄「提示當下的
+    // 玩家座標＋方位＋距離等級」，並用多筆提示做方位交會（bearing-only triangulation）估算
+    // 寶藏位置，透過 Splatoon 疊層畫出範圍圈，隨提示增加逐步縮小。
+    public class TreasureHuntManager : IDisposable
+    {
+        private const string LayerName = "EurekaHelper.TreasureHunt";
+
+        // 8 方位 -> 從正北順時針量測的角度（度）。遊戲聊天文字用的是中文全形方位詞。
+        private static readonly Dictionary<string, float> DirectionAngles = new()
+        {
+            ["正北"] = 0f,
+            ["東北"] = 45f,
+            ["正東"] = 90f,
+            ["東南"] = 135f,
+            ["正南"] = 180f,
+            ["西南"] = 225f,
+            ["正西"] = 270f,
+            ["西北"] = 315f,
+        };
+
+        // 距離等級 -> 概略碼數區間（min, max）。沒有官方精確數據，取自玩家社群對 Eureka
+        // 尋寶提示的經驗分級，僅供估算範圍圈大小參考；之後若有更準確資料可直接調整常數。
+        private static readonly Dictionary<string, (float Min, float Max)> DistanceTiers = new()
+        {
+            ["很遠"] = (200f, 300f),
+            ["稍遠"] = (120f, 200f),
+            ["不遠"] = (60f, 120f),
+            ["很近"] = (20f, 60f),
+            ["就在這附近"] = (0f, 20f),
+        };
+
+        private static readonly (float Min, float Max) UnknownTierFallback = (60f, 200f);
+
+        private static readonly Regex HintRegex =
+            new(@"財寶好像是在(?<dir>正東|正南|正西|正北|東北|東南|西南|西北)方向(?<tier>[^的]+?)的地方", RegexOptions.Compiled);
+
+        // 挖到寶藏時的系統訊息，例如"發現了財寶！！"。找到的當下座標最準確 - 拿來跟這一輪收集
+        // 到的提示鏈一起存進歷史，之後可以回頭校正 DistanceTiers 的碼數區間準不準。
+        private static readonly Regex FoundRegex = new(@"發現了財寶", RegexOptions.Compiled);
+
+        public IReadOnlyList<TreasureHint> Hints => _hints;
+        public IReadOnlyList<TreasureFoundRecord> History => EurekaHelper.Config.TreasureHuntHistory;
+        public Vector2? EstimatedPosition { get; private set; }
+        public float EstimatedRadius { get; private set; }
+
+        // 給 UI 顯示連線狀態用：Splatoon 疊層圓圈需要遊戲裡真的裝了「Splatoon」這個 Dalamud
+        // 外掛且已連上 ECommons IPC，才會實際畫出來 - 沒裝的話這裡會一直是 false，但地圖旗標
+        // （SetMapFlag）不受影響，仍會照常更新。
+        public bool IsSplatoonReady => _splatoonReady && Splatoon.IsConnected();
+
+        private readonly List<TreasureHint> _hints = new();
+        private bool _splatoonReady;
+
+        public TreasureHuntManager()
+        {
+            // ECommonsMain.Init/Dispose 是可重複呼叫的（內部有初始化計數），SplatoonManager
+            // 也會各自呼叫一次；兩者互不影響。這裡刻意不在 Dispose() 呼叫 ECommonsMain.Dispose()，
+            // 避免在 SplatoonManager 已停用（EnableSplatoonAggroRanges=false）時把另一個仍在用
+            // 的 Splatoon 連線關掉、或造成重複釋放。
+            ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+            Splatoon.SetOnConnect(OnSplatoonConnect);
+
+            DalamudApi.ChatGui.ChatMessage += OnChatMessage;
+        }
+
+        private void OnSplatoonConnect() => _splatoonReady = true;
+
+        private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+        {
+            var text = message.TextValue;
+
+            if (FoundRegex.IsMatch(text))
+            {
+                OnTreasureFound();
+                return;
+            }
+
+            var match = HintRegex.Match(text);
+            if (!match.Success)
+                return;
+
+            var direction = match.Groups["dir"].Value;
+            var tier = match.Groups["tier"].Value.Trim();
+
+            if (!DirectionAngles.TryGetValue(direction, out var angleDeg))
+                return;
+
+            var player = DalamudApi.ClientState.LocalPlayer;
+            if (player == null)
+                return;
+
+            if (!DistanceTiers.TryGetValue(tier, out var tierRange))
+            {
+                DalamudApi.Log.Warning($"[TreasureHuntManager] Unrecognized distance tier text \"{tier}\" - using fallback range.");
+                tierRange = UnknownTierFallback;
+            }
+
+            _hints.Add(new TreasureHint
+            {
+                Timestamp = DateTime.Now,
+                Origin = player.Position,
+                DirectionText = direction,
+                TierText = tier,
+                AngleDegrees = angleDeg,
+                MinDistance = tierRange.Min,
+                MaxDistance = tierRange.Max,
+            });
+
+            Draw();
+        }
+
+        // 挖到寶藏時，把「找到當下的玩家座標」連同這一輪收集到的完整提示鏈存進歷史紀錄
+        // （Configuration.TreasureHuntHistory，跨 session 持久化），供之後回頭比對每個距離等級
+        // 的碼數區間準不準。找到後這一輪尋寶結束，順便清空目前的提示鏈跟畫面標記。
+        private void OnTreasureFound()
+        {
+            var player = DalamudApi.ClientState.LocalPlayer;
+            if (player == null || _hints.Count == 0)
+            {
+                Clear();
+                return;
+            }
+
+            EurekaHelper.Config.TreasureHuntHistory.Add(new TreasureFoundRecord
+            {
+                Timestamp = DateTime.Now,
+                TerritoryId = DalamudApi.ClientState.TerritoryType,
+                FoundPosition = player.Position,
+                Hints = new List<TreasureHint>(_hints),
+            });
+            EurekaHelper.Config.Save();
+
+            Clear();
+        }
+
+        public void ClearHistory()
+        {
+            EurekaHelper.Config.TreasureHuntHistory.Clear();
+            EurekaHelper.Config.Save();
+        }
+
+        // 8 方位角（0°=正北，順時針）換算成水平方向單位向量。FFXIV 世界座標中正北對應 -Z、
+        // 正東對應 +X（與地圖畫面「上方為北」的慣例一致）— 這個假設尚待實機驗證，若範圍圈方向
+        // 明顯錯誤，優先檢查這裡。
+        private static Vector2 DirectionToVector(float angleDegrees)
+        {
+            var rad = angleDegrees * MathF.PI / 180f;
+            return new Vector2(MathF.Sin(rad), -MathF.Cos(rad));
+        }
+
+        // 扇形涵蓋的半角 - 8 方位系統裡每個方位詞代表 45° 的扇區，所以真實方位可能落在提示方位
+        // 兩側各 22.5° 內，剛好對應這個扇區的解析度。
+        private const float FanHalfAngleDegrees = 22.5f;
+
+        // 原本畫一個以三角交會估算點為中心的圓圈，但交會點常常不穩定（提示方位太接近時會跑到
+        // 很奇怪的地方）、範圍圈又大到看不出實際指向，玩家回報「太遠看不出來、到了也沒有縮小到
+        // 有用的範圍」。改成從「該次提示當下」座標出發、朝提示方位延伸的扇形（兩條邊線），長度
+        // 跟著該次提示的距離等級縮短 - 直接呈現「往哪個方向走、大概還要多遠」。每次按胡蘿蔔都會
+        // 疊加畫一個新的扇形，不會把前幾次的扇形擦掉，這樣可以直接在畫面上看到整個尋寶過程的
+        // 方位是怎麼逐漸縮小的。
+        private void Draw()
+        {
+            if (_hints.Count == 0)
+                return;
+
+            var latest = _hints[^1];
+
+            // 順便更新 EstimatedPosition/EstimatedRadius，供 UI 分頁跟地圖旗標使用 - 沿最新一次
+            // 提示的方位角走到距離等級中點。
+            var latestOrigin2D = new Vector2(latest.Origin.X, latest.Origin.Z);
+            var latestDir = DirectionToVector(latest.AngleDegrees);
+            var mid = (latest.MinDistance + latest.MaxDistance) / 2f;
+            EstimatedPosition = latestOrigin2D + latestDir * mid;
+            EstimatedRadius = latest.MaxDistance;
+
+            if (!_splatoonReady || !Splatoon.IsConnected())
+                return;
+
+            Splatoon.RemoveDynamicElements(LayerName);
+
+            // ECommons.SplatoonAPI.Element.SetRefCoord/SetOffCoord(Vector3) - the library's own
+            // helpers for fixed-coordinate elements - map refX=v.X,refY=v.Z,refZ=v.Y and the same
+            // for off* (decompiled from ECommons.dll). Using two Line elements (not a Cone) here
+            // deliberately sidesteps Splatoon's cone angle/rotation reference convention, which
+            // isn't documented anywhere and would need live in-game trial and error to get right -
+            // two lines from verified XYZ points carries no such risk.
+            var elements = new List<Element>(_hints.Count * 2);
+            foreach (var hint in _hints)
+            {
+                var origin2D = new Vector2(hint.Origin.X, hint.Origin.Z);
+                var leftDir = DirectionToVector(hint.AngleDegrees - FanHalfAngleDegrees);
+                var rightDir = DirectionToVector(hint.AngleDegrees + FanHalfAngleDegrees);
+                var length = MathF.Max(hint.MaxDistance, 3f);
+                var leftEdge = origin2D + leftDir * length;
+                var rightEdge = origin2D + rightDir * length;
+
+                elements.Add(new Element(ElementType.LineBetweenTwoFixedCoordinates)
+                {
+                    refX = origin2D.X,
+                    refY = origin2D.Y,
+                    refZ = hint.Origin.Y,
+                    offX = leftEdge.X,
+                    offY = leftEdge.Y,
+                    offZ = hint.Origin.Y,
+                    color = 0x800000FF,
+                    thicc = 3f,
+                    Enabled = true,
+                });
+                elements.Add(new Element(ElementType.LineBetweenTwoFixedCoordinates)
+                {
+                    refX = origin2D.X,
+                    refY = origin2D.Y,
+                    refZ = hint.Origin.Y,
+                    offX = rightEdge.X,
+                    offY = rightEdge.Y,
+                    offZ = hint.Origin.Y,
+                    color = 0x800000FF,
+                    thicc = 3f,
+                    Enabled = true,
+                });
+            }
+
+            try
+            {
+                Splatoon.AddDynamicElements(LayerName, elements.ToArray(), -2); // -2 = 不自動過期，生命週期由本類別管理
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, "[TreasureHuntManager] AddDynamicElements failed");
+            }
+
+            SetMapFlag(EstimatedPosition.Value);
+        }
+
+        // 每算出新的推算位置就自動更新遊戲地圖上的旗標，不用玩家手動點擊 - 這樣打開地圖就能
+        // 直接看到目前的推算位置，跟 Splatoon 範圍圈同步更新。
+        private void SetMapFlag(Vector2 worldPosXZ)
+        {
+            var territoryId = DalamudApi.ClientState.TerritoryType;
+            var territoryType = DalamudApi.DataManager.GetExcelSheet<TerritoryType>()!.GetRowOrDefault(territoryId);
+            if (territoryType == null)
+                return;
+
+            var mapPos = MapUtil.WorldToMap(worldPosXZ, territoryType.Value.Map.Value);
+            Utils.SetFlagMarker(territoryId, (ushort)territoryType.Value.Map.RowId, mapPos);
+
+            // vnavmesh 外掛的指令，讓角色自動走向剛設置好的地圖旗標。玩家沒裝 vnavmesh 的話這行
+            // 指令會被遊戲當成無效指令擋掉，不會發生任何事。
+            if (EurekaHelper.Config.TreasureHuntAutoMoveFlag)
+                Utils.SendMessage("/vnav moveflag");
+        }
+
+        // 唯二會清掉目前這輪提示鏈跟畫面上扇形的地方：玩家自己按「清除」（UI 呼叫這個方法），
+        // 或 OnTreasureFound 挖到寶藏時。刻意不會因為換區、閒置太久等情況自動清掉 - 扇形範圍
+        // 通常要花好幾分鐘才走得到，自動清掉只會讓畫面上的參考線消失卻沒有新的可看。
+        public void Clear()
+        {
+            _hints.Clear();
+            EstimatedPosition = null;
+            EstimatedRadius = 0f;
+            Splatoon.RemoveDynamicElements(LayerName);
+        }
+
+        public void Dispose()
+        {
+            DalamudApi.ChatGui.ChatMessage -= OnChatMessage;
+            Splatoon.RemoveDynamicElements(LayerName);
+        }
+    }
+
+    public class TreasureHint
+    {
+        public DateTime Timestamp { get; set; }
+        public Vector3 Origin { get; set; }
+        public string DirectionText { get; set; } = string.Empty;
+        public string TierText { get; set; } = string.Empty;
+        public float AngleDegrees { get; set; }
+        public float MinDistance { get; set; }
+        public float MaxDistance { get; set; }
+    }
+
+    // 一次完整尋寶的結果：實際挖到寶藏的座標，加上這一輪收集到的完整提示鏈。持久化在
+    // Configuration.TreasureHuntHistory 裡，供之後回頭比對 TreasureHuntManager.DistanceTiers
+    // 的碼數區間是否準確（例如：提示說「很近」時實際距離最終挖到的座標有多遠）。
+    public class TreasureFoundRecord
+    {
+        public DateTime Timestamp { get; set; }
+        public ushort TerritoryId { get; set; }
+        public Vector3 FoundPosition { get; set; }
+        public List<TreasureHint> Hints { get; set; } = new();
+    }
+}

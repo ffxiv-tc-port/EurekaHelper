@@ -133,6 +133,26 @@ namespace EurekaHelper
         public Dictionary<int, TrackerMemoryEntry> TrackerMemory = new();
 
         /*
+         * Last known server ID seen per zone (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos), persisted so
+         * a plugin reload while already standing inside an instance doesn't lose it - the game only
+         * reports the server ID on an actual zone-entry event (see ZoneManager.InitZoneDetour),
+         * which won't refire just because the plugin restarted mid-instance. ZoneManager seeds its
+         * in-memory copy from this on construction.
+         */
+        public Dictionary<int, ushort> LastServerIdPerZone = new();
+
+        // 每次尋寶推算出新位置、更新地圖旗標時，順便呼叫 vnavmesh 的 "/vnav moveflag" 自動走向
+        // 旗標。需要玩家自己裝 vnavmesh 外掛，沒裝的話這個指令送出去會被遊戲當成無效指令、不會
+        // 有任何效果。預設關閉 - 自動移動角色的行為有其風險（可能把你帶去危險的地方），要玩家
+        // 自己選擇開啟。
+        public bool TreasureHuntAutoMoveFlag = false;
+
+        // 每次挖到寶藏時，把找到當下的座標＋這一輪的完整提示鏈存一筆進來（見
+        // TreasureHuntManager.OnTreasureFound），跨 session 持久化，供之後回頭校正距離等級的
+        // 碼數區間。
+        public List<TreasureFoundRecord> TreasureHuntHistory = new();
+
+        /*
          * Server ID Configurations
          */
         public bool DisplayServerId = false;

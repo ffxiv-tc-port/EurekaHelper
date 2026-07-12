@@ -30,6 +30,7 @@ namespace EurekaHelper;
         internal readonly ElementalManager ElementalManager;
         internal readonly InventoryManager InventoryManager;
         internal readonly AlarmManager AlarmManager;
+        internal readonly TreasureHuntManager TreasureHuntManager;
         internal SplatoonManager SplatoonManager;
 
         public EurekaHelper(IDalamudPluginInterface pluginInterface)
@@ -47,6 +48,7 @@ namespace EurekaHelper;
             ElementalManager = new();
             InventoryManager = new();
             AlarmManager = new();
+            TreasureHuntManager = new();
 
             if (Config.EnableSplatoonAggroRanges)
                 SplatoonManager = new();
@@ -54,6 +56,11 @@ namespace EurekaHelper;
             PluginWindow = new(this);
             RelicWindow = new(this);
             AlarmWindow = new(this);
+
+            // Retry the tracker rejoin ZoneManager's constructor couldn't do yet (PluginWindow
+            // didn't exist at that point) - covers reloading the plugin while already standing
+            // inside an Eureka instance. See ZoneManager.TryRejoinCurrentZoneTracker.
+            ZoneManager.TryRejoinCurrentZoneTracker();
 
             WindowSystem = new("Eureka Helper");
             WindowSystem.AddWindow(PluginWindow);
@@ -252,6 +259,7 @@ namespace EurekaHelper;
             ElementalManager.Dispose();
             InventoryManager.Dispose();
             AlarmManager.Dispose();
+            TreasureHuntManager.Dispose();
             SplatoonManager?.Dispose();
             PluginWindow.DisposeAllConnections();
             DalamudApi.PluginInterface.RemoveChatLinkHandler();

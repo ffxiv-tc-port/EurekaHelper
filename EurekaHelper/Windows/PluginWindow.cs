@@ -11,8 +11,10 @@ using Dalamud.Logging;
 using Dalamud.Interface.Components;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Colors;
+using Dalamud.Utility;
 using EurekaHelper.System;
 using EurekaHelper.XIV;
+using Lumina.Excel.Sheets;
 
 namespace EurekaHelper.Windows
 {
@@ -53,13 +55,15 @@ namespace EurekaHelper.Windows
             if (connection == null || !connection.IsConnected())
                 return;
 
+            var serverId = ZoneManager.GetLastServerId(zoneIndex);
             EurekaHelper.Config.TrackerMemory[zoneIndex] = new TrackerMemoryEntry
             {
                 Code = connection.GetTrackerId(),
                 Password = connection.CanModify() ? connection.GetTrackerPassword() : string.Empty,
-                ServerId = ZoneManager.GetLastServerId(zoneIndex),
+                ServerId = serverId,
             };
             EurekaHelper.Config.Save();
+            DalamudApi.Log.Debug($"[PluginWindow] SetConnection: saved TrackerMemory for zone {zoneIndex}, code={connection.GetTrackerId()}, serverId={serverId}");
         }
 
         public void Dispose()
@@ -79,6 +83,12 @@ namespace EurekaHelper.Windows
                 if (ImGui.BeginTabItem(Loc.Text("Elementals")))
                 {
                     DrawElementalTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem(Loc.Text("Treasure Hunt")))
+                {
+                    DrawTreasureHuntTab();
                     ImGui.EndTabItem();
                 }
 
@@ -1082,6 +1092,131 @@ namespace EurekaHelper.Windows
             }
 
             ImGui.EndChild();
+        }
+
+        private void DrawTreasureHuntTab()
+        {
+            var manager = Plugin.TreasureHuntManager;
+
+            ImGui.TextWrapped(Loc.Text("Collects the direction hints from using a Lucky Carrot after the Fortune's Rabbit event, and estimates the treasure's location. The estimated range is drawn in-game via Splatoon."));
+            ImGui.Spacing();
+
+            if (ImGui.Button(Loc.Text("Clear")))
+                manager.Clear();
+
+            ImGui.SameLine();
+            if (manager.IsSplatoonReady)
+                ImGui.TextColored(ImGuiColors.HealerGreen, Loc.Text("Splatoon: Connected"));
+            else
+                ImGui.TextColored(ImGuiColors.DalamudRed, Loc.Text("Splatoon: Not Connected (range circle won't be drawn - map flag still works)"));
+
+            var autoMoveFlag = EurekaHelper.Config.TreasureHuntAutoMoveFlag;
+            if (ImGui.Checkbox(Loc.Text("Auto-move to flag (requires vnavmesh)"), ref autoMoveFlag))
+            {
+                EurekaHelper.Config.TreasureHuntAutoMoveFlag = autoMoveFlag;
+                EurekaHelper.Config.Save();
+            }
+
+            ImGui.Separator();
+
+            var territoryType = DalamudApi.DataManager.GetExcelSheet<TerritoryType>()!.GetRowOrDefault(DalamudApi.ClientState.TerritoryType);
+
+            if (manager.EstimatedPosition is { } estimate && territoryType != null)
+            {
+                var mapPos = MapUtil.WorldToMap(estimate, territoryType.Value.Map.Value);
+                ImGui.TextColored(ImGuiColors.DalamudYellow, Loc.Text("Estimated Location"));
+                ImGui.SameLine();
+                ImGui.Text($"X: {mapPos.X:0.0}, Y: {mapPos.Y:0.0}");
+                if (ImGui.IsItemClicked())
+                    Utils.SetFlagMarker((ushort)territoryType.Value.RowId, (ushort)territoryType.Value.Map.RowId, mapPos, openMap: true);
+                Utils.SetTooltip(Loc.Text("Click to place a map flag here."));
+
+                ImGui.SameLine();
+                if (ImGui.Button(Loc.Text("Set Map Flag")))
+                    Utils.SetFlagMarker((ushort)territoryType.Value.RowId, (ushort)territoryType.Value.Map.RowId, mapPos, openMap: true);
+            }
+            else
+            {
+                ImGui.TextDisabled(Loc.Text("No treasure hints collected yet."));
+            }
+
+            ImGui.Spacing();
+
+            if (ImGui.BeginTable("TreasureHintsTable", 4,
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
+                    ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
+                    new Vector2(0, 200)))
+            {
+                ImGui.TableSetupColumn(Loc.Text("Time"));
+                ImGui.TableSetupColumn(Loc.Text("Direction"));
+                ImGui.TableSetupColumn(Loc.Text("Distance Tier"));
+                ImGui.TableSetupColumn(Loc.Text("Location"));
+                ImGui.TableHeadersRow();
+
+                for (int i = manager.Hints.Count - 1; i >= 0; i--)
+                {
+                    var hint = manager.Hints[i];
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(hint.Timestamp.ToString("HH:mm:ss"));
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(hint.DirectionText);
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(hint.TierText);
+
+                    ImGui.TableNextColumn();
+                    if (territoryType != null)
+                    {
+                        var mapPos = MapUtil.WorldToMap(new Vector2(hint.Origin.X, hint.Origin.Z), territoryType.Value.Map.Value);
+                        ImGui.Text($"X: {mapPos.X:0.0}, Y: {mapPos.Y:0.0}");
+                    }
+                }
+
+                ImGui.EndTable();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+
+            ImGui.Text(Loc.Text("Found History"));
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.Text("Clear History")))
+                manager.ClearHistory();
+            Utils.SetTooltip(Loc.Text("Records the coordinates every time you find the treasure, so you can compare them against the hints later to calibrate the distance-tier estimates."));
+
+            if (ImGui.BeginTable("TreasureHistoryTable", 3,
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
+                    ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
+                    new Vector2(0, 150)))
+            {
+                ImGui.TableSetupColumn(Loc.Text("Time"));
+                ImGui.TableSetupColumn(Loc.Text("Location"));
+                ImGui.TableSetupColumn(Loc.Text("Hints"));
+                ImGui.TableHeadersRow();
+
+                for (int i = manager.History.Count - 1; i >= 0; i--)
+                {
+                    var record = manager.History[i];
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(record.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                    ImGui.TableNextColumn();
+                    var recordTerritoryType = DalamudApi.DataManager.GetExcelSheet<TerritoryType>()!.GetRowOrDefault(record.TerritoryId);
+                    if (recordTerritoryType != null)
+                    {
+                        var mapPos = MapUtil.WorldToMap(new Vector2(record.FoundPosition.X, record.FoundPosition.Z), recordTerritoryType.Value.Map.Value);
+                        ImGui.Text($"X: {mapPos.X:0.0}, Y: {mapPos.Y:0.0}");
+                    }
+
+                    ImGui.TableNextColumn();
+                    ImGui.Text(record.Hints.Count.ToString());
+                }
+
+                ImGui.EndTable();
+            }
         }
 
         static string CustomMessages = string.Join("\n", EurekaHelper.Config.CustomMessages);

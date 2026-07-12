@@ -39,9 +39,12 @@ namespace EurekaHelper.System
         {
             if (Utils.IsPlayerInEurekaZone(territoryId))
             {
-                if (EurekaHelper.Config.AutoCreateTracker)
-                    if (!PluginWindow.GetConnection().IsConnected())
-                        _ = Task.Run(async() => await _plugin.PluginWindow.CreateTracker(Utils.GetIndexOfZone(territoryId), true));
+                // Auto Create Tracker is handled by ZoneManager.HandleZoneEntry instead of here -
+                // that hook (InitZoneDetour) is what actually reads the server ID for this zone
+                // entry, so triggering the auto-create from there avoids a race against this
+                // (TerritoryChanged) event where ZoneManager.GetLastServerId(zoneIndex) could still
+                // be returning last visit's (or zero) server ID, silently corrupting
+                // Configuration.TrackerMemory with the wrong ID for future reload-rejoin matching.
 
                 EurekaTracker = Utils.GetEurekaTracker(territoryId);
                 _autoPopAttempted.Clear();
