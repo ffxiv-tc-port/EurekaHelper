@@ -905,6 +905,17 @@ namespace EurekaHelper.Windows
                         ImGui.EndTooltip();
                     }
                 }
+                else if (!fate.IsPopped())
+                {
+                    // Not spawned yet - show how many people are grinding the precondition kills
+                    // toward its spawn instead (site's own "即將可觸發" panel concept).
+                    var triggeringCount = EurekaHelper.Plugin.CookieBoxTracker.GetTriggeringCount(fate.BossName);
+                    if (triggeringCount > 0)
+                    {
+                        ImGui.TextColored(new Vector4(0.4f, 0.7f, 1.0f, 1.0f), Loc.Format("{0} triggering", triggeringCount));
+                        Utils.SetTooltip(Loc.Text("Number of people currently grinding the precondition kills toward this NM's spawn, per the community tracker."));
+                    }
+                }
 
                 // Popped At
                 ImGui.TableNextColumn();

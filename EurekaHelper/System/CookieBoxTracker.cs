@@ -27,6 +27,14 @@ namespace EurekaHelper.System
     {
         private const string BaseUrl = "https://eureka-tracker-64cc3-default-rtdb.asia-southeast1.firebasedatabase.app";
         private const string StreamPath = "/eureka/state.json";
+
+        // Separate top-level Firebase path (sibling of /eureka/state, not nested under it) used
+        // for the "即將可觸發" precondition-grinding tracker on the site - confirmed by reading
+        // the site's own index.html source (github.com/CooKieBox0501/Eureka-Tracker): schema is
+        // eureka/triggering/<nmId>/<discordId> = <timestamp>. Needs its own persistent SSE
+        // connection since it lives outside the /eureka/state subtree our other stream watches.
+        private const string TriggeringStreamPath = "/eureka/triggering.json";
+
         private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(15);
 
         // Best-effort short-key -> EurekaFate.BossName map, reverse-engineered from a handful of
@@ -69,6 +77,13 @@ namespace EurekaHelper.System
         private readonly CancellationTokenSource _cts = new();
         private readonly HashSet<string> _seenHistoryKeys = new();
         private readonly Task _listenTask;
+        private readonly Task _triggeringListenTask;
+
+        // Precondition-triggering mirror: nmId -> set of Discord user IDs currently marked as
+        // grinding toward that NM's spawn. Only a count is surfaced to the UI (see
+        // GetTriggeringCount) - individual Discord IDs aren't resolved to display names here.
+        private readonly Dictionary<string, HashSet<string>> _triggeringByNmId = new();
+        private readonly object _triggeringLock = new();
 
         // Currently-spawned NMs that someone has reported and is actively on a pull timer for
         // (/eureka/state/activeEvents/evt_<nmId>_<spawnedAt>), keyed by the raw event key so
@@ -95,7 +110,25 @@ namespace EurekaHelper.System
 
         public CookieBoxTracker()
         {
-            _listenTask = Task.Run(() => ListenLoop(_cts.Token));
+            _listenTask = Task.Run(() => ListenLoop(_cts.Token, StreamPath, HandleEvent, () => _firstEventProcessed = false));
+            _triggeringListenTask = Task.Run(() => ListenLoop(_cts.Token, TriggeringStreamPath, HandleTriggeringEvent, null));
+        }
+
+        // How many people are currently marked as grinding the precondition kills toward this
+        // boss's spawn (the "即將可觸發" panel's "觸發中N人" on the site), summed across every
+        // short-key alias that maps to this BossName.
+        public int GetTriggeringCount(string bossName)
+        {
+            lock (_triggeringLock)
+            {
+                var total = 0;
+                foreach (var (nmId, uids) in _triggeringByNmId)
+                {
+                    if (BossNameByShortKey.TryGetValue(nmId, out var mappedName) && mappedName == bossName)
+                        total += uids.Count;
+                }
+                return total;
+            }
         }
 
         // Looked up by the tracker UI (per fate row, via fate.BossName) to show how many people
@@ -144,13 +177,14 @@ namespace EurekaHelper.System
             return applied;
         }
 
-        private async Task ListenLoop(CancellationToken token)
+        private async Task ListenLoop(CancellationToken token, string path, Action<string, string> onEvent, Action onReconnect)
         {
             while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    await ConnectAndListen(token);
+                    onReconnect?.Invoke();
+                    await ConnectAndListen(token, path, onEvent);
                 }
                 catch (OperationCanceledException)
                 {
@@ -158,7 +192,7 @@ namespace EurekaHelper.System
                 }
                 catch (Exception ex)
                 {
-                    DalamudApi.Log.Warning($"[CookieBoxTracker] Stream disconnected, retrying in {ReconnectDelay.TotalSeconds}s: {ex.Message}");
+                    DalamudApi.Log.Warning($"[CookieBoxTracker] Stream disconnected ({path}), retrying in {ReconnectDelay.TotalSeconds}s: {ex.Message}");
                 }
 
                 try { await Task.Delay(ReconnectDelay, token); }
@@ -166,17 +200,15 @@ namespace EurekaHelper.System
             }
         }
 
-        private async Task ConnectAndListen(CancellationToken token)
+        private async Task ConnectAndListen(CancellationToken token, string path, Action<string, string> onEvent)
         {
-            _firstEventProcessed = false;
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, BaseUrl + StreamPath);
+            using var request = new HttpRequestMessage(HttpMethod.Get, BaseUrl + path);
             request.Headers.Add("Accept", "text/event-stream");
 
             using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
             response.EnsureSuccessStatusCode();
 
-            DalamudApi.Log.Information("[CookieBoxTracker] Connected to community tracker stream");
+            DalamudApi.Log.Information($"[CookieBoxTracker] Connected to community tracker stream ({path})");
 
             await using var stream = await response.Content.ReadAsStreamAsync(token);
             using var reader = new StreamReader(stream);
@@ -191,10 +223,10 @@ namespace EurekaHelper.System
                 if (line.StartsWith("event: "))
                     eventName = line["event: ".Length..];
                 else if (line.StartsWith("data: "))
-                    HandleEvent(eventName, line["data: ".Length..]);
+                    onEvent(eventName, line["data: ".Length..]);
             }
 
-            DalamudApi.Log.Information("[CookieBoxTracker] Stream closed by server");
+            DalamudApi.Log.Information($"[CookieBoxTracker] Stream closed by server ({path})");
         }
 
         private void HandleEvent(string eventName, string json)
@@ -234,6 +266,16 @@ namespace EurekaHelper.System
         // always the fully resolved absolute path regardless of how it was nested/flattened.
         private void ProcessNode(string[] baseSegments, JToken node, bool isInitial)
         {
+            // Must be checked before the general null early-return below, otherwise an
+            // activeEvents/<evtKey> node being nulled out (kill/cancel reported) would be silently
+            // dropped and the "someone is currently pulling this NM" state would never clear.
+            if (baseSegments.Length >= 2 && baseSegments[0] == "activeEvents" &&
+                (node == null || node.Type == JTokenType.Null))
+            {
+                RemoveActiveEvent(baseSegments[1]);
+                return;
+            }
+
             if (node == null || node.Type == JTokenType.Null)
                 return;
 
@@ -263,8 +305,6 @@ namespace EurekaHelper.System
                 ApplySpawn(baseSegments[1], (long)node, notify: !isInitial);
             else if (baseSegments.Length == 2 && baseSegments[0] == "history")
                 ApplyHistoryKey(baseSegments[1], isInitial);
-            else if (baseSegments.Length >= 2 && baseSegments[0] == "activeEvents" && node.Type == JTokenType.Null)
-                RemoveActiveEvent(baseSegments[1]);
         }
 
         private void ApplyActiveEvent(string eventKey, JObject evt)
@@ -303,6 +343,13 @@ namespace EurekaHelper.System
 
             for (var zoneIndex = 1; zoneIndex <= 4; zoneIndex++)
             {
+                // While physically standing in this zone, our own in-game detection (FateManager)
+                // is authoritative and already fires the same notification - applying this
+                // external report on top would just be a redundant/conflicting second event for
+                // something we already recorded ourselves.
+                if (zoneIndex == ZoneManager.CurrentZoneIndex)
+                    continue;
+
                 var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
                 var fate = connection.GetTracker()?.GetFates().FirstOrDefault(f => f.BossName == bossName);
                 if (fate == null)
@@ -348,10 +395,93 @@ namespace EurekaHelper.System
             DalamudApi.Log.Information($"[CookieBoxTracker] Zone reset detected ({match.Groups[1].Value}) - cleared local pop times for zone index {zoneIndex}");
         }
 
+        private void HandleTriggeringEvent(string eventName, string json)
+        {
+            DalamudApi.Log.Verbose($"[CookieBoxTracker] triggering event: {eventName}, data: {json}");
+
+            if (eventName != "put" && eventName != "patch")
+                return;
+
+            try
+            {
+                var payload = JObject.Parse(json);
+                var path = (string)payload["path"];
+                var data = payload["data"];
+
+                if (path == null)
+                    return;
+
+                var baseSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+                // A "put" at the root is a full replace of the whole /triggering tree (e.g. the
+                // very first event on a fresh connection) - clear first so any nmId/uid that was
+                // removed server-side while we were disconnected doesn't linger forever.
+                if (baseSegments.Length == 0 && eventName == "put")
+                {
+                    lock (_triggeringLock)
+                        _triggeringByNmId.Clear();
+                }
+
+                ProcessTriggeringNode(baseSegments, data);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Warning($"[CookieBoxTracker] Failed to process triggering event: {ex.Message}");
+            }
+        }
+
+        // Same flat-or-nested path walking approach as ProcessNode above, but for the simpler
+        // 2-level /triggering/<nmId>/<discordId> schema.
+        private void ProcessTriggeringNode(string[] baseSegments, JToken node)
+        {
+            if (node == null || node.Type == JTokenType.Null)
+            {
+                lock (_triggeringLock)
+                {
+                    if (baseSegments.Length == 1)
+                    {
+                        _triggeringByNmId.Remove(baseSegments[0]);
+                    }
+                    else if (baseSegments.Length >= 2 && _triggeringByNmId.TryGetValue(baseSegments[0], out var uids))
+                    {
+                        uids.Remove(baseSegments[1]);
+                        if (uids.Count == 0)
+                            _triggeringByNmId.Remove(baseSegments[0]);
+                    }
+                }
+                return;
+            }
+
+            if (node is JObject obj)
+            {
+                foreach (var prop in obj.Properties())
+                {
+                    var childSegments = baseSegments.Concat(prop.Name.Split('/', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+                    ProcessTriggeringNode(childSegments, prop.Value);
+                }
+                return;
+            }
+
+            // Leaf value (a timestamp) at the fully resolved [nmId, discordId] path.
+            if (baseSegments.Length < 2)
+                return;
+
+            lock (_triggeringLock)
+            {
+                if (!_triggeringByNmId.TryGetValue(baseSegments[0], out var uids))
+                {
+                    uids = new HashSet<string>();
+                    _triggeringByNmId[baseSegments[0]] = uids;
+                }
+                uids.Add(baseSegments[1]);
+            }
+        }
+
         public void Dispose()
         {
             _cts.Cancel();
             try { _listenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
+            try { _triggeringListenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
             _httpClient.Dispose();
             _cts.Dispose();
         }

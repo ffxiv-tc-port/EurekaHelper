@@ -790,6 +790,8 @@ internal static class Loc
 		["Pull time left: {0}"] = "剩餘回報時間: {0}",
 		["{0} people"] = "{0} 人",
 		["{0} - Pull time left: {1}"] = "{0} - 剩餘回報時間: {1}",
+		["{0} triggering"] = "{0} 人觸發中",
+		["Number of people currently grinding the precondition kills toward this NM's spawn, per the community tracker."] = "根據社群追蹤網站，目前有多少人正在擊殺前置怪以觸發這隻NM。",
 		["Actions"] = "操作",
 		["Reposition"] = "重新定位",
 		["Delete"] = "刪除",
