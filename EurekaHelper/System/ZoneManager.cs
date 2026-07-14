@@ -237,22 +237,28 @@ namespace EurekaHelper.System
         }
 
         // InitZoneDetour (and therefore HandleZoneEntry, which normally drives tracker
-        // rejoining) only fires on an actual zone-entry event. If the plugin is loaded/reloaded
-        // while already standing inside an Eureka instance, that event never refires, so the
-        // tracker would otherwise just stay disconnected until the player physically zones out
-        // and back in. Call this once PluginWindow exists (see EurekaHelper.cs constructor,
-        // after PluginWindow is created - this class can't call into PluginWindow any earlier)
-        // to retry the same silent-rejoin logic using the server ID already seeded from
-        // Configuration.LastServerIdPerZone in the constructor above.
+        // rejoining) only fires on an actual zone-entry event, and only ever for whichever zone
+        // the player is physically standing in - so a plugin reload used to only rejoin that one
+        // zone's tracker, silently dropping the other three even though their TrackerMemory
+        // (code/password/server ID) was still there. Call this once PluginWindow exists (see
+        // EurekaHelper.cs constructor, after PluginWindow is created - this class can't call into
+        // PluginWindow any earlier) to retry the silent-rejoin logic for ALL FOUR zones, each
+        // against its own last-known server ID (already seeded from
+        // Configuration.LastServerIdPerZone in the constructor above) - keeping every zone's
+        // tracker connection alive across a reload, not just the current one.
         public void TryRejoinCurrentZoneTracker()
         {
-            if (CurrentZoneIndex is < 1 or > 4 || CurrentServerId == 0)
+            for (var zoneIndex = 1; zoneIndex <= 4; zoneIndex++)
             {
-                DalamudApi.Log.Debug($"[ZoneManager] TryRejoinCurrentZoneTracker: nothing to do (CurrentZoneIndex={CurrentZoneIndex}, CurrentServerId={CurrentServerId})");
-                return;
-            }
+                var serverId = LastServerIdPerZone[zoneIndex];
+                if (serverId == 0)
+                {
+                    DalamudApi.Log.Debug($"[ZoneManager] TryRejoinCurrentZoneTracker: zone {zoneIndex} has no known server ID, skipping");
+                    continue;
+                }
 
-            TryRejoinTracker(CurrentZoneIndex, CurrentServerId);
+                TryRejoinTracker(zoneIndex, serverId);
+            }
         }
 
         // Closes and rejoins a zone's tracker using the same code/password it already had - used

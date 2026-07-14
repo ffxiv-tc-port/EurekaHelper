@@ -32,6 +32,7 @@ namespace EurekaHelper;
         internal readonly AlarmManager AlarmManager;
         internal readonly TreasureHuntManager TreasureHuntManager;
         internal SplatoonManager SplatoonManager;
+        internal CookieBoxTracker CookieBoxTracker;
 
         public EurekaHelper(IDalamudPluginInterface pluginInterface)
         {
@@ -56,6 +57,10 @@ namespace EurekaHelper;
             PluginWindow = new(this);
             RelicWindow = new(this);
             AlarmWindow = new(this);
+
+            // Needs PluginWindow to exist first (it reads/writes each zone's live tracker via
+            // PluginWindow.GetConnection).
+            CookieBoxTracker = new();
 
             // Retry the tracker rejoin ZoneManager's constructor couldn't do yet (PluginWindow
             // didn't exist at that point) - covers reloading the plugin while already standing
@@ -261,6 +266,7 @@ namespace EurekaHelper;
             AlarmManager.Dispose();
             TreasureHuntManager.Dispose();
             SplatoonManager?.Dispose();
+            CookieBoxTracker?.Dispose();
             PluginWindow.DisposeAllConnections();
             DalamudApi.PluginInterface.RemoveChatLinkHandler();
             DalamudApi.ClientState.Login -= OnLogin;

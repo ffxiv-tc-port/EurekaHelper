@@ -777,6 +777,29 @@ internal static class Loc
 		["Eureka Helper - Relic"] = "Eureka Helper - 魂武",
 		["Eureka Helper - Alarms"] = "Eureka Helper - 鬧鐘",
 		["Elementals"] = "聖靈",
+		["Mutant Monsters"] = "變異怪物",
+		["No mutant monster data for this zone yet."] = "此地圖尚無變異怪物資料。",
+		["Status"] = "狀態",
+		["Mutated"] = "突然變異",
+		["Adapted"] = "環境適應",
+		["Coordinates"] = "座標",
+		["[Triggering: {0}]"] = "[觸發中: {0}]",
+		["Triggering"] = "觸發中",
+		["Sync Recent Pops"] = "同步近期觸發紀錄",
+		["Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded."] = "從社群追蹤網站抓取過去2小時內回報的觸發時間，套用比目前紀錄更新的資料。",
+		["Pull time left: {0}"] = "剩餘回報時間: {0}",
+		["{0} people"] = "{0} 人",
+		["{0} - Pull time left: {1}"] = "{0} - 剩餘回報時間: {1}",
+		["Actions"] = "操作",
+		["Reposition"] = "重新定位",
+		["Delete"] = "刪除",
+		["Overwrites this record's location with where you're currently standing."] = "用目前角色所在位置覆蓋這筆紀錄的座標。",
+		["Manual Trigger"] = "手動觸發",
+		["Manually sends the vnavmesh move-to-flag command right now, without waiting for a new hint."] = "立即手動發送 vnavmesh 走向旗標指令，不用等待新的尋寶提示。",
+		["Click to set a flag marker"] = "點擊設置地圖旗標",
+		["Can Mutate"] = "可變異",
+		["Can Adapt"] = "可適應",
+		["Roams multiple locations"] = "地圖內各關隘處",
 		["Configuration"] = "設定",
 		["Instance"] = "副本",
 		["About"] = "關於",
@@ -1237,7 +1260,9 @@ internal static class Loc
 		["Skoll"] = "斯庫爾",
 		["Pyros Shuck"] = "湧火狗靈",
 		["Penthesilea"] = "彭忒西勒亞",
-		["Val Bloodglider"] = "瓦爾血飛蛾"
+		["Val Bloodglider"] = "瓦爾血飛蛾",
+		["Ovni"] = "未確認飛行物體",
+		["Tristitia"] = "特里斯提提亞"
 	};
 
 	public static string Text(string key)
@@ -1261,9 +1286,10 @@ internal static class Loc
 	public static bool TryEurekaName(string text, out string translated)
 	{
 		translated = text;
-		if (!string.IsNullOrWhiteSpace(text))
+		if (!string.IsNullOrWhiteSpace(text) && EurekaNamesZhTw.TryGetValue(text, out var found))
 		{
-			return EurekaNamesZhTw.TryGetValue(text, out translated);
+			translated = found;
+			return true;
 		}
 		return false;
 	}

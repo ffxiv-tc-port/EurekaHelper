@@ -7,6 +7,8 @@ using System.IO;
 using System.Linq;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
+using EurekaHelper.XIV;
+using EurekaHelper.XIV.Zones;
 
 namespace EurekaHelper.System
 {
@@ -100,6 +102,27 @@ namespace EurekaHelper.System
         private HashSet<string> _seenMonsters = new();
         private bool _splatoonReady = false;
 
+        // "變異怪物" (mutant field mobs, unrelated to NM/aggro-range tracking above): under
+        // certain weather/time-of-day, a normal mob has no status at all until it triggers, at
+        // which point it gets exactly one of two status buffs: "環境適應" (Environmental
+        // Adaptation) or "突然變異" (Sudden Mutation) into its stronger variant form - these are
+        // two distinct outcomes, not a before/after pair on the same mob. _adaptedNames/
+        // _mutatedNames are detected purely from the live status list (used by the Mutant
+        // Monsters tab's Status column). The Splatoon circle, however, is drawn BEFORE that -
+        // while the mob is still statusless but the current weather/time-of-day is one that CAN
+        // trigger it (see MutantMonster.WeatherWindows, seeded per zone in
+        // EurekaHydatosMutants.cs etc.) - and stops the moment either status actually appears.
+        // Matched/drawn by name like the aggro ranges above (Splatoon's
+        // IGameObjectWithSpecifiedAttribute has no exact-actor-address option in this ECommons
+        // version), so identically-named mobs nearby will all highlight together.
+        private const string MutationLayerName = "EurekaHelper.MutationStatus";
+        private const string AdaptedStatusName = "環境適應";
+        private const string MutatedStatusName = "突然變異";
+        private HashSet<string> _adaptedNames = new();
+        private HashSet<string> _mutatedNames = new();
+        private static readonly TimeSpan MutationRedrawInterval = TimeSpan.FromSeconds(1);
+        private DateTime _nextMutationRedraw = DateTime.MinValue;
+
         public SplatoonManager()
         {
             _configPath = Path.Combine(DalamudApi.PluginInterface.GetPluginConfigDirectory(), "AggroRanges.json");
@@ -125,6 +148,9 @@ namespace EurekaHelper.System
         private void OnTerritoryChanged(ushort territoryId)
         {
             Splatoon.RemoveDynamicElements(LayerName);
+            Splatoon.RemoveDynamicElements(MutationLayerName);
+            _adaptedNames = new();
+            _mutatedNames = new();
 
             if (Utils.IsPlayerInEurekaZone(territoryId))
             {
@@ -166,6 +192,9 @@ namespace EurekaHelper.System
             var battleNpcs = 0;
             var enemyKind = 0;
             var aliveEnemies = 0;
+
+            var currentAdapted = new HashSet<string>();
+            var currentMutated = new HashSet<string>();
 
             foreach (var obj in DalamudApi.ObjectTable)
             {
@@ -220,6 +249,18 @@ namespace EurekaHelper.System
 
                 if (AutoClassify(name))
                     newlyClassified = true;
+
+                if (BackfillNpcId(name, battleNpc.NameId))
+                    newlyClassified = true;
+
+                foreach (var status in battleNpc.StatusList)
+                {
+                    var statusName = status.GameData.Value.Name.ExtractText();
+                    if (statusName == AdaptedStatusName)
+                        currentAdapted.Add(name);
+                    else if (statusName == MutatedStatusName)
+                        currentMutated.Add(name);
+                }
             }
 
             _lastScanTotalObjects = totalObjects;
@@ -254,6 +295,82 @@ namespace EurekaHelper.System
                 DrawForCurrentZone();
                 _nextForcedRedraw = DateTime.UtcNow + RedrawInterval;
             }
+
+            // Mutation status can appear/disappear far more often than aggro-range classification
+            // does, so it gets its own shorter redraw cadence/layer instead of piggybacking on
+            // RedrawInterval above.
+            if (!currentAdapted.SetEquals(_adaptedNames) || !currentMutated.SetEquals(_mutatedNames) ||
+                DateTime.UtcNow >= _nextMutationRedraw)
+            {
+                _adaptedNames = currentAdapted;
+                _mutatedNames = currentMutated;
+                Splatoon.RemoveDynamicElements(MutationLayerName);
+                DrawMutationStatus();
+                _nextMutationRedraw = DateTime.UtcNow + MutationRedrawInterval;
+            }
+        }
+
+        // Draws a small solid circle (15% alpha) on any seeded mutant monster whose current
+        // weather/time-of-day window is active AND that hasn't triggered yet (no
+        // 環境適應/突然變異 status) - yellow if it's predicted to end up "突然變異", green if
+        // "環境適應" (see MutantMonster.PredictedOutcome). Only Pagos/Pyros/Hydatos have
+        // weather-window data seeded so far (see
+        // EurekaPagosMutants.cs/EurekaPyrosMutants.cs/EurekaHydatosMutants.cs) - Anemos simply has
+        // nothing to iterate yet. Same name-matching limitation as the aggro ranges above means a
+        // same-named live mob that already mutated may keep showing this circle until Splatoon's
+        // own onlyTargetable/redraw cycle catches up - accepted rather than fought.
+        private void DrawMutationStatus()
+        {
+            if (!_splatoonReady || !Splatoon.IsConnected())
+                return;
+
+            var (monsters, currentWeather) = DalamudApi.ClientState.TerritoryType switch
+            {
+                763 => (EurekaPagosMutants.Monsters, EurekaPagos.GetCurrentWeatherInfoStatic().Weather),
+                795 => (EurekaPyrosMutants.Monsters, EurekaPyros.GetCurrentWeatherInfoStatic().Weather),
+                827 => (EurekaHydatosMutants.Monsters, EurekaHydatos.GetCurrentWeatherInfoStatic().Weather),
+                _ => (null, EurekaWeather.None),
+            };
+            if (monsters == null)
+                return;
+
+            var isNight = EorzeaTime.Now.IsNight;
+
+            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
+            var elements = new List<Element>();
+
+            foreach (var monster in monsters)
+            {
+                if (_adaptedNames.Contains(monster.Name) || _mutatedNames.Contains(monster.Name))
+                    continue; // already triggered - nothing left to flag
+
+                if (!monster.IsEligibleNow(currentWeather, isNight))
+                    continue;
+
+                var circle = new Element(ElementType.CircleRelativeToActorPosition)
+                {
+                    refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
+                    refActorName = monster.Name,
+                    radius = 1f,
+                    color = monster.PredictedOutcome == MutationOutcome.Mutated
+                        ? 0x2600FFFFu  // yellow, 15% alpha
+                        : 0x2600FF00u, // green, 15% alpha
+                    Filled = true,
+                    thicc = 2f,
+                    onlyTargetable = true,
+                };
+                ApplyDistanceLimit(circle, playerPos);
+                elements.Add(circle);
+            }
+
+            try
+            {
+                Splatoon.AddDynamicElements(MutationLayerName, elements.ToArray(), -2);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[SplatoonManager] AddDynamicElements failed for {elements.Count} mutation-status element(s)");
+            }
         }
 
         // Returns true if a new entry was added (caller batches the Splatoon redraw itself -
@@ -278,7 +395,41 @@ namespace EurekaHelper.System
             return true;
         }
 
+        // Passively fills in each aggro-range entry's NPC Name ID the first time that name is
+        // seen alive, no manual measuring/locking required - just walking past the mob is enough.
+        // Once collected, DrawForCurrentZone switches that entry from substring name-matching
+        // (which false-positives whenever one mob's name is contained in another's, e.g. "達菲妮"
+        // vs "豐水達菲妮" - see SplatoonManager.cs's AggroRanges.seed.json collision writeup) to
+        // an exact ID match. Returns true if a config was updated (caller batches the Splatoon
+        // redraw the same way AutoClassify does).
+        private bool BackfillNpcId(string name, uint nameId)
+        {
+            if (nameId == 0 || !_aggroRanges.TryGetValue(name, out var configs))
+                return false;
+
+            var changed = false;
+            foreach (var config in configs)
+            {
+                if (config.NpcId != 0)
+                    continue;
+
+                config.NpcId = nameId;
+                changed = true;
+            }
+
+            if (changed)
+                DalamudApi.Log.Information($"[SplatoonManager] Collected NPC ID {nameId} for \"{name}\"");
+
+            return changed;
+        }
+
         public IReadOnlyCollection<string> GetSeenMonsters() => _seenMonsters;
+
+        // Live-detected status: which mob names are currently showing "環境適應" (about to
+        // mutate) or "突然變異" (already mutated), refreshed every OnFrameworkUpdate tick
+        // regardless of whether Splatoon is connected (only the drawing step needs that).
+        public IReadOnlyCollection<string> GetAdaptedNames() => _adaptedNames;
+        public IReadOnlyCollection<string> GetMutatedNames() => _mutatedNames;
 
         private void LoadSeenMonsters()
         {
@@ -330,6 +481,27 @@ namespace EurekaHelper.System
             element.DistanceMax = MaxDrawDistance;
         }
 
+        // Prefers an exact NPC Name ID match (collected passively - see BackfillNpcId) over
+        // Splatoon's substring name-matching, which false-positives whenever one mob's display
+        // name happens to be contained inside another's (e.g. "達菲妮" inside "豐水達菲妮" -
+        // AggroRanges.seed.json has over a dozen such collisions, mostly NM-vs-its-own-adds but a
+        // few unrelated pairs too). refActorComparisonAnd + an empty refActorName tells Splatoon
+        // to skip the name check entirely and match on refActorNPCID alone.
+        private static void ApplyActorMatch(Element element, string bossName, AggroRangeConfig range)
+        {
+            element.refActorType = RefActorType.IGameObjectWithSpecifiedAttribute;
+
+            if (range.NpcId != 0)
+            {
+                element.refActorComparisonAnd = true;
+                element.refActorNPCID = range.NpcId;
+            }
+            else
+            {
+                element.refActorName = bossName;
+            }
+        }
+
         public void DrawForCurrentZone()
         {
             if (!_splatoonReady || !Splatoon.IsConnected())
@@ -360,8 +532,6 @@ namespace EurekaHelper.System
                         // instead of an opaque wedge.
                         var cone = new Element(ElementType.ConeRelativeToObjectPosition)
                         {
-                            refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
-                            refActorName = bossName,
                             radius = range.Radius,
                             coneAngleMin = -range.ConeHalfAngleDegrees,
                             coneAngleMax = range.ConeHalfAngleDegrees,
@@ -371,6 +541,7 @@ namespace EurekaHelper.System
                             thicc = range.Thickness,
                             onlyTargetable = true, // stop drawing once the actor dies/despawns
                         };
+                        ApplyActorMatch(cone, bossName, range);
                         ApplyDistanceLimit(cone, playerPos);
                         elements.Add(cone);
                     }
@@ -378,14 +549,13 @@ namespace EurekaHelper.System
                     {
                         var circle = new Element(ElementType.CircleRelativeToActorPosition)
                         {
-                            refActorType = RefActorType.IGameObjectWithSpecifiedAttribute,
-                            refActorName = bossName,
                             radius = range.Radius,
                             color = range.Color,
                             Filled = false, // Circle elements DO respect Filled correctly - outline only
                             thicc = range.Thickness,
                             onlyTargetable = true, // stop drawing once the actor dies/despawns
                         };
+                        ApplyActorMatch(circle, bossName, range);
                         ApplyDistanceLimit(circle, playerPos);
                         elements.Add(circle);
                     }
@@ -513,7 +683,7 @@ namespace EurekaHelper.System
                 ["EXAMPLE - 沙巴頓仙人掌怪"] = new()
                 {
                     new AggroRangeConfig { Type = AggroType.Aural, Shape = AggroShape.Circle, Radius = 10f, Color = 0x4000FFFFu },
-                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 15f, ConeHalfAngleDegrees = 45, Color = 0x0D0000FFu },
+                    new AggroRangeConfig { Type = AggroType.Visual, Shape = AggroShape.Cone, Radius = 11f, ConeHalfAngleDegrees = 45, Color = 0x0D0000FFu },
                 },
             };
 
@@ -549,6 +719,7 @@ namespace EurekaHelper.System
             DalamudApi.ClientState.TerritoryChanged -= OnTerritoryChanged;
             DalamudApi.Framework.Update -= OnFrameworkUpdate;
             Splatoon.RemoveDynamicElements(LayerName);
+            Splatoon.RemoveDynamicElements(MutationLayerName);
             ECommonsMain.Dispose();
         }
     }
@@ -576,11 +747,18 @@ namespace EurekaHelper.System
         public int ConeHalfAngleDegrees { get; set; } = 60;
         public uint Color { get; set; } = 0xFFFFFFFF;
         public float Thickness { get; set; } = 2f;
+
+        // NPC Name ID (IBattleNpc.NameId / GetNameId()) - passively backfilled the first time this
+        // name is seen alive in SplatoonManager.OnFrameworkUpdate, no manual work needed. 0 means
+        // "not collected yet". Once set, drawing switches from substring name-matching (which
+        // false-positives whenever one mob's name is a substring of another's, e.g. "達菲妮" vs
+        // "豐水達菲妮") to an exact ID match - see SplatoonManager.DrawForCurrentZone.
+        public uint NpcId { get; set; }
     }
 
     public static class AggroTypeDefaults
     {
-        // Visual = 15y, 90 degree forward cone (45 either side of facing) - and Aural = 10y
+        // Visual = 11y, 90 degree forward cone (45 either side of facing) - and Aural = 10y
         // circle - are the user-specified defaults for those two types. Magic/Blood have no
         // known default radius (no public source gives one), so they stay at 0 - drawn as
         // nothing until measured via the Debug tab. All of these remain freely editable before
@@ -588,7 +766,7 @@ namespace EurekaHelper.System
         public static (AggroShape Shape, uint Color, float Radius, int ConeHalfAngleDegrees) Get(AggroType type) => type switch
         {
             AggroType.Aural => (AggroShape.Circle, 0x4000FFFFu, 10f, 60),
-            AggroType.Visual => (AggroShape.Cone, 0x0D0000FFu, 15f, 45), // ~5% alpha - cones always draw filled (Splatoon quirk), keep it nearly invisible
+            AggroType.Visual => (AggroShape.Cone, 0x0D0000FFu, 11f, 45), // ~5% alpha - cones always draw filled (Splatoon quirk), keep it nearly invisible
             AggroType.Magic => (AggroShape.Circle, 0x40FF7E27u, 0f, 60),
             AggroType.Blood => (AggroShape.Circle, 0x40B000FFu, 0f, 60),
             _ => (AggroShape.Circle, 0x40FFFFFFu, 0f, 60),

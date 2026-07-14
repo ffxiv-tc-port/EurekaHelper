@@ -140,14 +140,14 @@ namespace EurekaHelper
 
             foreach (var fate in fates)
             {
-                var fateSheetData = DalamudApi.DataManager.GetExcelSheet<Fate>()!.GetRow(fate.FateId);
-                if (fateSheetData.Location == 0)
+                var fateSheetData = DalamudApi.DataManager.GetExcelSheet<Fate>()!.GetRowOrDefault(fate.FateId);
+                if (fateSheetData == null || fateSheetData.Value.Location == 0)
                     continue;
 
-                if (!eventData.Exists(x => x.InstanceId == fateSheetData.Location))
+                if (!eventData.Exists(x => x.InstanceId == fateSheetData.Value.Location))
                     continue;
 
-                var match = eventData.Find(x => x.InstanceId == fateSheetData.Location);
+                var match = eventData.Find(x => x.InstanceId == fateSheetData.Value.Location);
 
                 var vector = MapUtil.WorldToMap(new Vector2(match.Transform.Translation.X, match.Transform.Translation.Z), territoryType.Value.Map.Value);
 

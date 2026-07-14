@@ -14,7 +14,9 @@ using Dalamud.Interface.Colors;
 using Dalamud.Utility;
 using EurekaHelper.System;
 using EurekaHelper.XIV;
+using EurekaHelper.XIV.Zones;
 using Lumina.Excel.Sheets;
+using System.Text;
 
 namespace EurekaHelper.Windows
 {
@@ -86,6 +88,12 @@ namespace EurekaHelper.Windows
                     ImGui.EndTabItem();
                 }
 
+                if (ImGui.BeginTabItem(Loc.Text("Mutant Monsters")))
+                {
+                    DrawMutantMonstersTab();
+                    ImGui.EndTabItem();
+                }
+
                 if (ImGui.BeginTabItem(Loc.Text("Treasure Hunt")))
                 {
                     DrawTreasureHuntTab();
@@ -149,6 +157,22 @@ namespace EurekaHelper.Windows
         // the user every frame if they manually click a different tab afterwards.
         private int _lastAutoSwitchedZoneIndex;
 
+        // ImGuiNET only exposes BeginTabItem(label, flags) bundled with a mandatory "ref bool
+        // p_open" parameter, which always draws a closeable "x" on the tab regardless of the
+        // bool's value - there's no managed overload for "flags but no close button". The native
+        // igBeginTabItem accepts a null p_open pointer for exactly that case, so call it directly
+        // to get ImGuiTabItemFlags (e.g. SetSelected for auto-switching zones) without an
+        // accidentally-clickable close button on each zone tab.
+        private static unsafe bool BeginTabItemNoClose(string label, ImGuiTabItemFlags flags)
+        {
+            var byteCount = Encoding.UTF8.GetByteCount(label);
+            Span<byte> buffer = stackalloc byte[byteCount + 1];
+            Encoding.UTF8.GetBytes(label, buffer);
+            buffer[byteCount] = 0;
+            fixed (byte* ptr = buffer)
+                return ImGuiNative.igBeginTabItem(ptr, null, flags) != 0;
+        }
+
         public void DrawTrackerTab()
         {
             var autoSwitchToZoneIndex = -1;
@@ -164,8 +188,7 @@ namespace EurekaHelper.Windows
                 {
                     var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
                     var flags = zoneIndex == autoSwitchToZoneIndex ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-                    var tabOpen = true;
-                    if (ImGui.BeginTabItem(zoneName, ref tabOpen, flags))
+                    if (BeginTabItemNoClose(zoneName, flags))
                     {
                         SelectedTrackerZoneIndex = zoneIndex;
                         DrawTrackerZoneTab();
@@ -207,7 +230,7 @@ namespace EurekaHelper.Windows
                     ImGui.SameLine();
 
                     if (ImGuiComponents.IconButton(FontAwesomeIcon.Key))
-                        Utils.CopyToClipboard(Loc.Format("Password: {0}", Connection.GetTrackerPassword()));
+                        Utils.CopyToClipboard(Connection.GetTrackerPassword());
                     Utils.SetTooltip(Loc.Text("Copy tracker password to clipboard"));
 
                     ImGui.SameLine();
@@ -432,6 +455,24 @@ namespace EurekaHelper.Windows
             ImGui.PopStyleVar();
 
             ImGui.Spacing();
+
+            if (ImGui.Button(Loc.Text("Sync Recent Pops")))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await EurekaHelper.Plugin.CookieBoxTracker.ResyncRecentSpawnsAsync(TimeSpan.FromHours(2));
+                    }
+                    catch (Exception ex)
+                    {
+                        DalamudApi.Log.Warning($"[CookieBoxTracker] Manual resync failed: {ex.Message}");
+                    }
+                });
+            }
+            Utils.SetTooltip(Loc.Text("Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded."));
+
+            ImGui.Spacing();
             DrawTrackerTable();
         }
 
@@ -492,7 +533,7 @@ namespace EurekaHelper.Windows
 
             if (Connection.IsConnected())
             {
-                var numColumns = 6;
+                var numColumns = 7;
                 if (ImGui.BeginTable("TrackerTable", numColumns,
                         ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
                         ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings |
@@ -506,6 +547,7 @@ namespace EurekaHelper.Windows
                     ImGui.TableSetupColumn(Loc.Text("Lv"), levelTableColumnFlags);
                     ImGui.TableSetupColumn(Loc.Text("NM"), ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn(Loc.Text("Spawned By"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Triggering"), ImGuiTableColumnFlags.WidthFixed);
                     ImGui.TableSetupColumn(Loc.Text("Popped At"));
                     ImGui.TableSetupColumn(Loc.Text("Respawn In"));
                     ImGui.TableSetupColumn(resetAllText,
@@ -585,6 +627,126 @@ namespace EurekaHelper.Windows
         private string TimeAgoMinutes = "0";
         private bool IsEditing = false;
 
+        // Same 4-zone-tab layout as the Tracker, but for "變異怪物" (mutant field mobs) - see
+        // MutantMonster's doc comment. Only Hydatos has data seeded so far; the other three zones
+        // just show an empty-state message until someone fills in their location data too.
+        private int SelectedMutantZoneIndex = 2;
+
+        private static List<MutantMonster> GetMutantMonstersForZone(int zoneIndex) => zoneIndex switch
+        {
+            2 => EurekaPagosMutants.Monsters,
+            3 => EurekaPyrosMutants.Monsters,
+            4 => EurekaHydatosMutants.Monsters,
+            _ => new List<MutantMonster>(),
+        };
+
+        // Anemos has no mutant-monster mechanic at all (confirmed - not just "no data seeded
+        // yet" like Pagos), so it's excluded from this tab entirely rather than shown as an
+        // empty zone.
+        private static readonly int[] MutantZoneIndices = { 2, 3, 4 };
+
+        public void DrawMutantMonstersTab()
+        {
+            if (ImGui.BeginTabBar("EHelperMutantZoneTab"))
+            {
+                foreach (var zoneIndex in MutantZoneIndices)
+                {
+                    var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
+                    if (ImGui.BeginTabItem(zoneName))
+                    {
+                        SelectedMutantZoneIndex = zoneIndex;
+                        DrawMutantMonstersZoneTab();
+                        ImGui.EndTabItem();
+                    }
+                }
+
+                ImGui.EndTabBar();
+            }
+        }
+
+        private void DrawMutantMonstersZoneTab()
+        {
+            var monsters = GetMutantMonstersForZone(SelectedMutantZoneIndex);
+
+            ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
+            ImGui.BeginChild("MutantMonsters",
+                new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y), true);
+            ImGui.PopStyleColor();
+            ImGui.PopStyleVar();
+
+            if (monsters.Count == 0)
+            {
+                Utils.CenterText(Loc.Text("No mutant monster data for this zone yet."));
+                ImGui.EndChild();
+                return;
+            }
+
+            var splatoonManager = EurekaHelper.Plugin.SplatoonManager;
+            var adaptedNames = splatoonManager?.GetAdaptedNames();
+            var mutatedNames = splatoonManager?.GetMutatedNames();
+
+            var (currentWeather, isNight) = SelectedMutantZoneIndex switch
+            {
+                2 => (EurekaPagos.GetCurrentWeatherInfoStatic().Weather, EorzeaTime.Now.IsNight),
+                3 => (EurekaPyros.GetCurrentWeatherInfoStatic().Weather, EorzeaTime.Now.IsNight),
+                4 => (EurekaHydatos.GetCurrentWeatherInfoStatic().Weather, EorzeaTime.Now.IsNight),
+                _ => (EurekaWeather.None, false),
+            };
+
+            if (ImGui.BeginTable("MutantMonstersTable", 4,
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
+                    ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings))
+            {
+                ImGui.TableSetupColumn(Loc.Text("Lv"), ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn(Loc.Text("NM"), ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn(Loc.Text("Status"), ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn(Loc.Text("Coordinates"));
+                ImGui.TableSetupScrollFreeze(0, 1);
+                ImGui.TableHeadersRow();
+
+                foreach (var monster in monsters)
+                {
+                    ImGui.TableNextRow();
+
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text(monster.Level.ToString());
+
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.Text(monster.Name);
+
+                    ImGui.TableSetColumnIndex(2);
+                    if (mutatedNames != null && mutatedNames.Contains(monster.Name))
+                        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.2f, 1f), Loc.Text("Mutated"));
+                    else if (adaptedNames != null && adaptedNames.Contains(monster.Name))
+                        ImGui.TextColored(new Vector4(0.33f, 0.76f, 0.67f, 1f), Loc.Text("Adapted"));
+                    else if (monster.IsEligibleNow(currentWeather, isNight) && monster.PredictedOutcome == MutationOutcome.Mutated)
+                        ImGui.TextColored(new Vector4(0.9f, 0.85f, 0.2f, 1f), Loc.Text("Can Mutate"));
+                    else if (monster.IsEligibleNow(currentWeather, isNight) && monster.PredictedOutcome == MutationOutcome.Adapted)
+                        ImGui.TextColored(new Vector4(0.33f, 0.76f, 0.67f, 1f), Loc.Text("Can Adapt"));
+                    else
+                        ImGui.TextDisabled("-");
+
+                    ImGui.TableSetColumnIndex(3);
+                    if (monster.Position is { } position)
+                    {
+                        ImGui.Text($"({position.X:00.0}, {position.Y:00.0})");
+                        if (ImGui.IsItemClicked())
+                            Utils.SetFlagMarker(monster.TerritoryId, monster.MapId, position, openMap: true);
+                        Utils.SetTooltip(Loc.Text("Click to set a flag marker"));
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled(Loc.Text("Roams multiple locations"));
+                    }
+                }
+
+                ImGui.EndTable();
+            }
+
+            ImGui.EndChild();
+        }
+
         private void DrawTracker()
         {
             var zoneFates = Connection.GetTracker()?.GetFates().Where(x => x.IncludeInTracker).ToList();
@@ -662,7 +824,10 @@ namespace EurekaHelper.Windows
                 ImGui.TableNextColumn();
                 Loc.TryEurekaName(fate.BossName, out var bossNameText);
                 ImGui.Text(bossNameText);
-                if (ImGui.IsItemHovered())
+                var bossNameHovered = ImGui.IsItemHovered();
+                var bossNameClicked = ImGui.IsItemClicked();
+
+                if (bossNameHovered)
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
                     ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
@@ -686,13 +851,13 @@ namespace EurekaHelper.Windows
                     ImGui.PopStyleColor();
                 }
 
-                if (ImGui.IsItemClicked())
+                if (bossNameClicked)
                     Utils.SetFlagMarker(fate, openMap: true);
 
                 // Spawned By
                 ImGui.TableNextColumn();
                 Loc.TryEurekaName(fate.SpawnedBy, out var spawnedByText);
-                ImGui.Text(spawnedByText);
+                ImGui.Text(spawnedByText ?? string.Empty);
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
@@ -722,6 +887,24 @@ namespace EurekaHelper.Windows
                 if (ImGui.IsItemClicked())
                     Utils.SetFlagMarker(fate.TerritoryId, fate.MapId,
                         new Vector2(fate.SpawnByPosition.X, fate.SpawnByPosition.Y), openMap: true, drawCircle: true);
+
+                // Triggering
+                ImGui.TableNextColumn();
+                var activeTriggers = EurekaHelper.Plugin.CookieBoxTracker.GetActiveTriggers(fate.BossName);
+                if (activeTriggers.Count > 0)
+                {
+                    ImGui.TextColored(new Vector4(1.0f, 0.65f, 0.0f, 1.0f), Loc.Format("{0} people", activeTriggers.Count));
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.BeginTooltip();
+                        foreach (var trigger in activeTriggers)
+                        {
+                            var timeLeft = TimeSpan.FromSeconds(trigger.PullSecondsLeft).ToString(@"mm\:ss");
+                            ImGui.Text(Loc.Format("{0} - Pull time left: {1}", trigger.ReporterName, timeLeft));
+                        }
+                        ImGui.EndTooltip();
+                    }
+                }
 
                 // Popped At
                 ImGui.TableNextColumn();
@@ -1117,6 +1300,11 @@ namespace EurekaHelper.Windows
                 EurekaHelper.Config.Save();
             }
 
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.Text("Manual Trigger")))
+                Utils.SendMessage("/vnav moveflag");
+            Utils.SetTooltip(Loc.Text("Manually sends the vnavmesh move-to-flag command right now, without waiting for a new hint."));
+
             ImGui.Separator();
 
             var territoryType = DalamudApi.DataManager.GetExcelSheet<TerritoryType>()!.GetRowOrDefault(DalamudApi.ClientState.TerritoryType);
@@ -1186,7 +1374,7 @@ namespace EurekaHelper.Windows
                 manager.ClearHistory();
             Utils.SetTooltip(Loc.Text("Records the coordinates every time you find the treasure, so you can compare them against the hints later to calibrate the distance-tier estimates."));
 
-            if (ImGui.BeginTable("TreasureHistoryTable", 3,
+            if (ImGui.BeginTable("TreasureHistoryTable", 4,
                     ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
                     ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
                     new Vector2(0, 150)))
@@ -1194,6 +1382,7 @@ namespace EurekaHelper.Windows
                 ImGui.TableSetupColumn(Loc.Text("Time"));
                 ImGui.TableSetupColumn(Loc.Text("Location"));
                 ImGui.TableSetupColumn(Loc.Text("Hints"));
+                ImGui.TableSetupColumn(Loc.Text("Actions"), ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableHeadersRow();
 
                 for (int i = manager.History.Count - 1; i >= 0; i--)
@@ -1209,10 +1398,26 @@ namespace EurekaHelper.Windows
                     {
                         var mapPos = MapUtil.WorldToMap(new Vector2(record.FoundPosition.X, record.FoundPosition.Z), recordTerritoryType.Value.Map.Value);
                         ImGui.Text($"X: {mapPos.X:0.0}, Y: {mapPos.Y:0.0}");
+                        if (ImGui.IsItemClicked())
+                            Utils.SetFlagMarker(record.TerritoryId, (ushort)recordTerritoryType.Value.Map.RowId, mapPos, openMap: true);
+                        Utils.SetTooltip(Loc.Text("Click to set a flag marker"));
                     }
 
                     ImGui.TableNextColumn();
                     ImGui.Text(record.Hints.Count.ToString());
+
+                    ImGui.TableNextColumn();
+                    if (ImGui.Button($"{Loc.Text("Reposition")}##{i}"))
+                    {
+                        var player = DalamudApi.ClientState.LocalPlayer;
+                        if (player != null)
+                            manager.RepositionHistoryRecord(record, player.Position);
+                    }
+                    Utils.SetTooltip(Loc.Text("Overwrites this record's location with where you're currently standing."));
+
+                    ImGui.SameLine();
+                    if (ImGui.Button($"{Loc.Text("Delete")}##{i}"))
+                        manager.DeleteHistoryRecord(record);
                 }
 
                 ImGui.EndTable();

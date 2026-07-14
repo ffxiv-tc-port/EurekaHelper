@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Plugin.Services;
 using Dalamud.Utility;
 using ECommons;
 using ECommons.SplatoonAPI;
@@ -18,6 +19,17 @@ namespace EurekaHelper.System
     public class TreasureHuntManager : IDisposable
     {
         private const string LayerName = "EurekaHelper.TreasureHunt";
+        private const string HistoryMarkerLayerName = LayerName + ".HistoryMarker";
+
+        // How close the bearing-triangulated EstimatedPosition needs to land to a past
+        // TreasureFoundRecord (same territory) before we trust the historical spot over the
+        // triangulation and snap to it instead.
+        private const float HistoricalPredictionMatchRadius = 10f;
+
+        // How close the player physically needs to walk to a past TreasureFoundRecord (same
+        // territory) before a "dig here" marker is drawn at that historical spot - independent of
+        // whether a hunt is currently active, since treasure tends to reappear at the same spots.
+        private const float HistoricalProximityRadius = 20f;
 
         // 8 方位 -> 從正北順時針量測的角度（度）。遊戲聊天文字用的是中文全形方位詞。
         private static readonly Dictionary<string, float> DirectionAngles = new()
@@ -64,9 +76,11 @@ namespace EurekaHelper.System
 
         private readonly List<TreasureHint> _hints = new();
         private bool _splatoonReady;
+        private TreasureFoundRecord _nearbyHistoricalRecord;
 
         public TreasureHuntManager()
         {
+            DalamudApi.Framework.Update += OnFrameworkUpdate;
             // ECommonsMain.Init/Dispose 是可重複呼叫的（內部有初始化計數），SplatoonManager
             // 也會各自呼叫一次；兩者互不影響。這裡刻意不在 Dispose() 呼叫 ECommonsMain.Dispose()，
             // 避免在 SplatoonManager 已停用（EnableSplatoonAggroRanges=false）時把另一個仍在用
@@ -78,6 +92,69 @@ namespace EurekaHelper.System
         }
 
         private void OnSplatoonConnect() => _splatoonReady = true;
+
+        // Continuously checks whether the player has walked within HistoricalProximityRadius of
+        // a past TreasureFoundRecord (regardless of whether a hunt is currently active) and keeps
+        // a solid green "dig here" marker drawn at that spot - cleared again once they walk away.
+        private void OnFrameworkUpdate(IFramework framework)
+        {
+            var player = DalamudApi.ClientState.LocalPlayer;
+            if (player == null)
+                return;
+
+            var territoryId = DalamudApi.ClientState.TerritoryType;
+            var playerPos2D = new Vector2(player.Position.X, player.Position.Z);
+
+            TreasureFoundRecord nearest = null;
+            var nearestDistance = float.MaxValue;
+            foreach (var record in EurekaHelper.Config.TreasureHuntHistory)
+            {
+                if (record.TerritoryId != territoryId)
+                    continue;
+
+                var histPos2D = new Vector2(record.FoundPosition.X, record.FoundPosition.Z);
+                var distance = Vector2.Distance(playerPos2D, histPos2D);
+                if (distance <= HistoricalProximityRadius && distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = record;
+                }
+            }
+
+            if (ReferenceEquals(nearest, _nearbyHistoricalRecord))
+                return;
+
+            _nearbyHistoricalRecord = nearest;
+
+            if (!_splatoonReady || !Splatoon.IsConnected())
+                return;
+
+            Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
+
+            if (nearest == null)
+                return;
+
+            var marker = new Element(ElementType.CircleAtFixedCoordinates)
+            {
+                refX = nearest.FoundPosition.X,
+                refY = nearest.FoundPosition.Z,
+                refZ = nearest.FoundPosition.Y,
+                radius = 1f,
+                color = 0xFF00FF00u, // solid green
+                Filled = true,
+                thicc = 2f,
+                Enabled = true,
+            };
+
+            try
+            {
+                Splatoon.AddDynamicElements(HistoryMarkerLayerName, new[] { marker }, -2);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, "[TreasureHuntManager] AddDynamicElements (history marker) failed");
+            }
+        }
 
         private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
@@ -153,6 +230,21 @@ namespace EurekaHelper.System
             EurekaHelper.Config.Save();
         }
 
+        public void DeleteHistoryRecord(TreasureFoundRecord record)
+        {
+            EurekaHelper.Config.TreasureHuntHistory.Remove(record);
+            EurekaHelper.Config.Save();
+        }
+
+        // Manual correction for a record whose FoundPosition was recorded wrong (e.g. the player
+        // moved a bit before the "發現了財寶" message fired) - overwrites it with wherever the
+        // player is currently standing.
+        public void RepositionHistoryRecord(TreasureFoundRecord record, Vector3 newPosition)
+        {
+            record.FoundPosition = newPosition;
+            EurekaHelper.Config.Save();
+        }
+
         // 8 方位角（0°=正北，順時針）換算成水平方向單位向量。FFXIV 世界座標中正北對應 -Z、
         // 正東對應 +X（與地圖畫面「上方為北」的慣例一致）— 這個假設尚待實機驗證，若範圍圈方向
         // 明顯錯誤，優先檢查這裡。
@@ -186,6 +278,23 @@ namespace EurekaHelper.System
             var mid = (latest.MinDistance + latest.MaxDistance) / 2f;
             EstimatedPosition = latestOrigin2D + latestDir * mid;
             EstimatedRadius = latest.MaxDistance;
+
+            // If the triangulated estimate lands close to somewhere treasure was found before
+            // (same territory), trust that historical spot over the bearing math and snap to it.
+            var territoryId = DalamudApi.ClientState.TerritoryType;
+            foreach (var record in EurekaHelper.Config.TreasureHuntHistory)
+            {
+                if (record.TerritoryId != territoryId)
+                    continue;
+
+                var histPos2D = new Vector2(record.FoundPosition.X, record.FoundPosition.Z);
+                if (Vector2.Distance(EstimatedPosition.Value, histPos2D) > HistoricalPredictionMatchRadius)
+                    continue;
+
+                EstimatedPosition = histPos2D;
+                EstimatedRadius = 1f;
+                break;
+            }
 
             if (!_splatoonReady || !Splatoon.IsConnected())
                 return;
@@ -278,7 +387,9 @@ namespace EurekaHelper.System
         public void Dispose()
         {
             DalamudApi.ChatGui.ChatMessage -= OnChatMessage;
+            DalamudApi.Framework.Update -= OnFrameworkUpdate;
             Splatoon.RemoveDynamicElements(LayerName);
+            Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
         }
     }
 
