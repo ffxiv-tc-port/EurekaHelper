@@ -305,6 +305,8 @@ namespace EurekaHelper.System
                 ApplySpawn(baseSegments[1], (long)node, notify: !isInitial);
             else if (baseSegments.Length == 2 && baseSegments[0] == "history")
                 ApplyHistoryKey(baseSegments[1], isInitial);
+            else if (baseSegments.Length == 2 && baseSegments[0] == "newIslandMark" && node.Type == JTokenType.Integer)
+                ApplyNewIslandMark(baseSegments[1], isInitial);
         }
 
         private void ApplyActiveEvent(string eventKey, JObject evt)
@@ -393,6 +395,29 @@ namespace EurekaHelper.System
                 fate.ResetKill();
 
             DalamudApi.Log.Information($"[CookieBoxTracker] Zone reset detected ({match.Groups[1].Value}) - cleared local pop times for zone index {zoneIndex}");
+        }
+
+        // /eureka/state/newIslandMark/<zone> is written by the site the moment a "new island"
+        // reset is reported - it lands before the corresponding history/h_reset_<zone>_... entry
+        // (which ApplyHistoryKey also reacts to), so acting on it here clears local pop times a
+        // little sooner. Reacting to both is harmless - EurekaFate.ResetKill() is idempotent.
+        private void ApplyNewIslandMark(string zoneName, bool isInitial)
+        {
+            if (isInitial)
+                return;
+
+            if (!ZoneIndexByName.TryGetValue(zoneName, out var zoneIndex))
+                return;
+
+            var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
+            var fates = connection.GetTracker()?.GetFates();
+            if (fates == null)
+                return;
+
+            foreach (var fate in fates)
+                fate.ResetKill();
+
+            DalamudApi.Log.Information($"[CookieBoxTracker] New island mark detected ({zoneName}) - cleared local pop times for zone index {zoneIndex}");
         }
 
         private void HandleTriggeringEvent(string eventName, string json)
