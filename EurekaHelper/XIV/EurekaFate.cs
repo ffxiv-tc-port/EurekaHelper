@@ -125,6 +125,11 @@ namespace EurekaHelper.XIV
 
         public void ResetKill() => KilledAt = -1;
 
+        // Lets a fate's cooldown length vary per-occurrence instead of being fixed at
+        // construction - e.g. Ovni/Tristitia use a longer window when their FATE just times out
+        // on its own versus a shorter one when players actually kill it (see FateManager).
+        public void SetRespawnDuration(TimeSpan duration) => RespawnDuration = duration;
+
         public void SetKill(long time) => KilledAt = time;
 
         public long GetKilledAt() => KilledAt;

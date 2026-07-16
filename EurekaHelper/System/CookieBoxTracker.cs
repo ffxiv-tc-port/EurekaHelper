@@ -20,9 +20,10 @@ namespace EurekaHelper.System
     // streaming protocol) instead of polling - per explicit instruction not to hit the API
     // repeatedly, this opens one connection and stays on it, reconnecting only on drop.
     //
-    // Only feeds known, confidently-mapped named NM keys (see BossNameByShortKey) into
-    // EurekaFate.SetKill - the "o_<zone>_<level>_<hash>" keys used for mutant-monster events have
-    // no decodable name in this database and are intentionally skipped rather than guessed.
+    // Only feeds known, mapped short keys (see BossNameByShortKey) into EurekaFate.SetKill - this
+    // now covers every zone's full NM roster (both the named "lord"/"bao" keys and the
+    // "o_<zone>_<level>_<hash>" keys used for the rest), reverse-engineered from the site's own
+    // source. Anything not in that map (Bunny Fates, Ovni/Tristitia) is intentionally skipped.
     public class CookieBoxTracker : IDisposable
     {
         private const string BaseUrl = "https://eureka-tracker-64cc3-default-rtdb.asia-southeast1.firebasedatabase.app";
@@ -37,30 +38,98 @@ namespace EurekaHelper.System
 
         private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(15);
 
-        // Best-effort short-key -> EurekaFate.BossName map, reverse-engineered from a handful of
-        // observed /eureka/state/history entries (h_<key>_<timestamp>). Not exhaustive - any
-        // NM/zone not listed here is simply never updated from this source. Extend as more
-        // short-keys are observed in the wild.
+        // How old a spawn report's timestamp can be before it's treated as a backfilled record
+        // (recorded silently) rather than a live discovery (which notifies).
+        private static readonly TimeSpan BackfillThreshold = TimeSpan.FromMinutes(5);
+
+        // Best-effort short-key -> EurekaFate.BossName map. The "lord"/"bao" category entries
+        // (named short keys like "arthro") were reverse-engineered from observed
+        // /eureka/state/history entries; the "o_<zone>_<level>_<hash>" entries were instead
+        // extracted directly from the site's own NM_DATA table (github.com/CooKieBox0501/
+        // Eureka-Tracker index.html) and matched to our EurekaFate entries by FateLevel, which
+        // lines up 1:1 with NM_DATA's "level" field per zone (confirmed against every "lord"/"bao"
+        // entry's level too, e.g. arthro=29, cassie/louhi=35). Ovni/Tristitia have no NM_DATA
+        // entry (not a trackable "NM" on the site) and Bunny Fates aren't tracked there either.
         private static readonly Dictionary<string, string> BossNameByShortKey = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["arthro"] = "King Arthro",
-            ["lamebrix"] = "Lamebrix Strikebocks",
+            // "lord" category
             ["pazuzu"] = "Pazuzu",
-            ["molech"] = "Molech",
+            ["louhi"] = "Louhi",
             ["penthesilea"] = "Penthesilea",
-            ["goldemar"] = "King Goldemar",
+            ["pw"] = "Provenance Watcher",
+            ["provenancewatcher"] = "Provenance Watcher", // best-guess alias, not directly observed
+
+            // "bao" (八寶) category
+            ["arthro"] = "King Arthro",
+            ["cassie"] = "Copycat Cassie",
+            ["kc"] = "Copycat Cassie", // best-guess alias, not directly observed
+            ["lamebrix"] = "Lamebrix Strikebocks",
             ["yinyang"] = "Ying-Yang",
             ["skoll"] = "Skoll",
+            ["molech"] = "Molech",
+            ["goldemar"] = "King Goldemar",
             ["ceto"] = "Ceto",
 
-            // Confirmed via screenshots of the site's own NM list (nickname shown next to name),
-            // not directly observed in a history entry yet - short-key spelling here is a
-            // best guess following the same convention as the confirmed entries above.
-            ["cassie"] = "Copycat Cassie",
-            ["kc"] = "Copycat Cassie",
-            ["louhi"] = "Louhi",
-            ["pw"] = "Provenance Watcher",
-            ["provenancewatcher"] = "Provenance Watcher",
+            // "other" category (regular field NMs) - Anemos
+            ["o_anemos_1_2959"] = "Sabotender Corrido",
+            ["o_anemos_2_2093"] = "The Lord of Anemos",
+            ["o_anemos_3_5872"] = "Teles",
+            ["o_anemos_4_6031"] = "The Emperor of Anemos",
+            ["o_anemos_5_3368"] = "Callisto",
+            ["o_anemos_6_5722"] = "Number",
+            ["o_anemos_7_2923"] = "Jahannam",
+            ["o_anemos_8_2668"] = "Amemet",
+            ["o_anemos_9_6986"] = "Caym",
+            ["o_anemos_10_7975"] = "Bombadeel",
+            ["o_anemos_11_5228"] = "Serket",
+            ["o_anemos_12_7277"] = "Judgemental Julika",
+            ["o_anemos_13_4187"] = "The White Rider",
+            ["o_anemos_14_942"] = "Polyphemus",
+            ["o_anemos_15_4295"] = "Simurgh's Strider",
+            ["o_anemos_16_5231"] = "King Hazmat",
+            ["o_anemos_17_4403"] = "Fafnir",
+            ["o_anemos_18_9636"] = "Amarok",
+            ["o_anemos_19_8804"] = "Lamashtu",
+
+            // "other" category - Pagos
+            ["o_pagos_20_4005"] = "The Snow Queen",
+            ["o_pagos_21_8448"] = "Taxim",
+            ["o_pagos_22_5316"] = "Ash Dragon",
+            ["o_pagos_23_7297"] = "Glavoid",
+            ["o_pagos_24_9984"] = "Anapos",
+            ["o_pagos_25_175"] = "Hakutaku",
+            ["o_pagos_26_8076"] = "King Igloo",
+            ["o_pagos_27_5784"] = "Asag",
+            ["o_pagos_28_9276"] = "Surabhi",
+            ["o_pagos_30_3536"] = "Mindertaur/Eldertaur",
+            ["o_pagos_31_6136"] = "Holy Cow",
+            ["o_pagos_32_570"] = "Hadhayosh",
+            ["o_pagos_33_4840"] = "Horus",
+            ["o_pagos_34_3437"] = "Arch Angra Mainyu",
+
+            // "other" category - Pyros
+            ["o_pyros_35_7030"] = "Leucosia",
+            ["o_pyros_36_3335"] = "Flauros",
+            ["o_pyros_37_989"] = "The Sophist",
+            ["o_pyros_38_1244"] = "Graffiacane",
+            ["o_pyros_39_2267"] = "Askalaphos",
+            ["o_pyros_40_6992"] = "Grand Duke Batym",
+            ["o_pyros_41_2613"] = "Aetolus",
+            ["o_pyros_42_9107"] = "Lesath",
+            ["o_pyros_43_853"] = "Eldthurs",
+            ["o_pyros_44_8032"] = "Iris",
+            ["o_pyros_46_1074"] = "Dux",
+            ["o_pyros_47_1030"] = "Lumber Jack",
+            ["o_pyros_48_1869"] = "Glaukopis",
+
+            // "other" category - Hydatos
+            ["o_hydatos_50_8658"] = "Khalamari",
+            ["o_hydatos_51_7072"] = "Stegodon",
+            ["o_hydatos_53_2207"] = "Piasa",
+            ["o_hydatos_54_5861"] = "Frostmane",
+            ["o_hydatos_55_2653"] = "Daphne",
+            ["o_hydatos_57_4205"] = "Leuke",
+            ["o_hydatos_58_4972"] = "Barong",
         };
 
         private static readonly Dictionary<string, int> ZoneIndexByName = new(StringComparer.OrdinalIgnoreCase)
@@ -169,7 +238,7 @@ namespace EurekaHelper.System
                 if (timestamp < cutoff)
                     continue;
 
-                ApplySpawn(prop.Name, timestamp, notify: false);
+                ApplySpawn(prop.Name, timestamp, notify: false, skipCurrentZone: false);
                 applied++;
             }
 
@@ -335,21 +404,22 @@ namespace EurekaHelper.System
                 _activeTriggersByEventKey.Remove(eventKey);
         }
 
-        private void ApplySpawn(string shortKey, long timestamp, bool notify)
+        private void ApplySpawn(string shortKey, long timestamp, bool notify, bool skipCurrentZone = true)
         {
-            if (shortKey.StartsWith("o_"))
-                return; // mutant-monster synthetic id - not decodable to a specific mob
-
             if (!BossNameByShortKey.TryGetValue(shortKey, out var bossName))
                 return;
 
             for (var zoneIndex = 1; zoneIndex <= 4; zoneIndex++)
             {
                 // While physically standing in this zone, our own in-game detection (FateManager)
-                // is authoritative and already fires the same notification - applying this
-                // external report on top would just be a redundant/conflicting second event for
-                // something we already recorded ourselves.
-                if (zoneIndex == ZoneManager.CurrentZoneIndex)
+                // already recorded whatever we personally witnessed there, and that's more
+                // trustworthy than a third party's report - a live external event overwriting it
+                // (even just to update the timestamp, without notifying) risks clobbering the
+                // precise time we actually saw with a less precise/delayed one from someone else.
+                // Only skipped for the manual "sync recent pops" resync (skipCurrentZone: false),
+                // which is a deliberate catch-up action, not a live event that could race with
+                // something we just witnessed ourselves.
+                if (skipCurrentZone && zoneIndex == ZoneManager.CurrentZoneIndex)
                     continue;
 
                 var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
@@ -364,10 +434,16 @@ namespace EurekaHelper.System
 
                 fate.SetKill(timestamp);
 
+                // A live event can still carry an old timestamp - e.g. someone using the site's
+                // "出現回報" button to backfill a pop that happened a while ago rather than one
+                // just discovered. That's worth recording (it's still newer than what we had), but
+                // not worth a notification as if it were just spotted right now.
+                var isBackfill = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestamp > BackfillThreshold.TotalMilliseconds;
+
                 // Fire the same toast/chat/sound notification as a normally-detected pop, even if
                 // we're not currently standing in that zone - this is the whole point of pulling
                 // in a second data source, so it's worth surfacing regardless of location.
-                if (notify)
+                if (notify && !isBackfill)
                     FateManager.DisplayFatePop(fate);
             }
         }

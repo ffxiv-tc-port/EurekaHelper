@@ -71,8 +71,8 @@ namespace EurekaHelper.XIV.Zones
                 new(1420, 63, 827, 515,     "Robber Barong", "Barong", "Barong", new Vector2(32.0f, 24.0f), "Laboratory Lion", new Vector2(34.6f, 24.9f), EurekaWeather.None, EurekaWeather.None, EurekaElement.Fire, EurekaElement.Earth, false, 58),
                 new(1421, 64, 827, 515,     "Stone-cold Killer", "Ceto", "Ceto", new Vector2(36.4f, 13.4f), "Hydatos Delphyne", new Vector2(36.4f, 13.4f), EurekaWeather.None, EurekaWeather.None, EurekaElement.Water, EurekaElement.Fire, false, 59),
                 new(1423, 65, 827, 515,     "Crystalline Provenance", "Provenance Watcher", "PW", new Vector2(32.7f, 19.6f), "Crystal Claw", new Vector2(32.5f, 21.6f), EurekaWeather.None, EurekaWeather.None, EurekaElement.Fire, EurekaElement.Fire, false, 60),
-                new(1424, 66, 827, 515,   "I Don't Want to Believe", "Ovni", "Ovni", new Vector2(27.1f, 29.0f), null, Vector2.Zero, EurekaWeather.None, EurekaWeather.None, EurekaElement.Unknown, EurekaElement.Unknown, false, 60, true, false, TimeSpan.FromMinutes(30)),
-                new(1422, 67, 827, 515,   "The Baldesion Arsenal: Expedition Support", "Tristitia", "Support Fate", new Vector2(18.8f, 28.9f), null, Vector2.Zero, EurekaWeather.None, EurekaWeather.None, EurekaElement.Unknown, EurekaElement.Unknown, false, 60),
+                new(1424, 66, 827, 515,   "I Don't Want to Believe", "Ovni", "Ovni", new Vector2(27.1f, 29.0f), null, Vector2.Zero, EurekaWeather.None, EurekaWeather.None, EurekaElement.Unknown, EurekaElement.Unknown, false, 60, true, false, TimeSpan.FromMinutes(45)),
+                new(1422, 67, 827, 515,   "The Baldesion Arsenal: Expedition Support", "Tristitia", "Support Fate", new Vector2(18.8f, 28.9f), null, Vector2.Zero, EurekaWeather.None, EurekaWeather.None, EurekaElement.Unknown, EurekaElement.Unknown, false, 60, true, false, TimeSpan.FromMinutes(45)),
                 new(1425, null, 827, 515,   "Drink Me", "Bunny Fate 1", "Bunny Fate 1", new Vector2(14.0f, 21.5f), null, Vector2.Zero, EurekaWeather.None, EurekaWeather.None, EurekaElement.Unknown, EurekaElement.Unknown, false, 50, false, true),
             };
 

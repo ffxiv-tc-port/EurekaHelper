@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Text;
@@ -24,11 +25,11 @@ namespace EurekaHelper.System
         // How close the bearing-triangulated EstimatedPosition needs to land to a past
         // TreasureFoundRecord (same territory) before we trust the historical spot over the
         // triangulation and snap to it instead.
-        private const float HistoricalPredictionMatchRadius = 10f;
+        private const float HistoricalPredictionMatchRadius = 30f;
 
         // How close the player physically needs to walk to a past TreasureFoundRecord (same
-        // territory) before a "dig here" marker is drawn at that historical spot - independent of
-        // whether a hunt is currently active, since treasure tends to reappear at the same spots.
+        // territory) before a "dig here" marker is drawn at that historical spot - only while a
+        // hunt is active (see OnFrameworkUpdate).
         private const float HistoricalProximityRadius = 20f;
 
         // 8 方位 -> 從正北順時針量測的角度（度）。遊戲聊天文字用的是中文全形方位詞。
@@ -44,18 +45,24 @@ namespace EurekaHelper.System
             ["西北"] = 315f,
         };
 
-        // 距離等級 -> 概略碼數區間（min, max）。沒有官方精確數據，取自玩家社群對 Eureka
-        // 尋寶提示的經驗分級，僅供估算範圍圈大小參考；之後若有更準確資料可直接調整常數。
+        // 距離等級 -> 概略碼數區間（min, max）。原始數值取自玩家社群經驗分級，但比對
+        // TreasureHuntHistory 跟實際挖到座標的距離後發現不準，動過兩次：
+        // 1. 第一版全部「打對折」下修 - 近距離（很近/不遠）修對了方向，但遠距離修過頭。
+        // 2. 之後新增一筆乾淨的單目標連續10次提示資料（距離單調遞減：491.9→...→225.0 時是
+        //    「很遠」、171.2→101.2 是「稍遠」、40.3 是「不遠」、9.0 是「很近」），顯示遠距離
+        //    等級的真實碼數遠比對折後的數字大很多 - 距離等級不是線性縮放，遠距離區間本來就該
+        //    寬很多。這版近距離沿用對折後的數字（有跨紀錄驗證），遠距離改用這筆乾淨資料校正。
+        // 「就在這附近」目前仍完全沒有樣本驗證，之後有資料要再檢查。
         private static readonly Dictionary<string, (float Min, float Max)> DistanceTiers = new()
         {
-            ["很遠"] = (200f, 300f),
-            ["稍遠"] = (120f, 200f),
-            ["不遠"] = (60f, 120f),
-            ["很近"] = (20f, 60f),
-            ["就在這附近"] = (0f, 20f),
+            ["很遠"] = (200f, 500f),
+            ["稍遠"] = (100f, 200f),
+            ["不遠"] = (40f, 100f),
+            ["很近"] = (10f, 40f),
+            ["就在這附近"] = (0f, 10f),
         };
 
-        private static readonly (float Min, float Max) UnknownTierFallback = (60f, 200f);
+        private static readonly (float Min, float Max) UnknownTierFallback = (40f, 200f);
 
         private static readonly Regex HintRegex =
             new(@"財寶好像是在(?<dir>正東|正南|正西|正北|東北|東南|西南|西北)方向(?<tier>[^的]+?)的地方", RegexOptions.Compiled);
@@ -68,6 +75,11 @@ namespace EurekaHelper.System
         public IReadOnlyList<TreasureFoundRecord> History => EurekaHelper.Config.TreasureHuntHistory;
         public Vector2? EstimatedPosition { get; private set; }
         public float EstimatedRadius { get; private set; }
+
+        // True when EstimatedPosition came from a past TreasureFoundRecord (strong fan-match or
+        // proximity snap) rather than the raw bearing triangulation - lets the UI flag that the
+        // suggested spot is a confirmed historical dig site, not just a geometric guess.
+        public bool IsUsingHistoricalPosition { get; private set; }
 
         // 給 UI 顯示連線狀態用：Splatoon 疊層圓圈需要遊戲裡真的裝了「Splatoon」這個 Dalamud
         // 外掛且已連上 ECommons IPC，才會實際畫出來 - 沒裝的話這裡會一直是 false，但地圖旗標
@@ -94,10 +106,22 @@ namespace EurekaHelper.System
         private void OnSplatoonConnect() => _splatoonReady = true;
 
         // Continuously checks whether the player has walked within HistoricalProximityRadius of
-        // a past TreasureFoundRecord (regardless of whether a hunt is currently active) and keeps
-        // a solid green "dig here" marker drawn at that spot - cleared again once they walk away.
+        // a past TreasureFoundRecord and keeps a solid green "dig here" marker drawn at that spot
+        // - cleared again once they walk away. Only runs while a hunt is actually active (has at
+        // least one collected hint) - outside of that this is just noise, not something worth
+        // drawing over every historical dig site the player happens to walk past.
         private void OnFrameworkUpdate(IFramework framework)
         {
+            if (_hints.Count == 0)
+            {
+                if (_nearbyHistoricalRecord != null)
+                {
+                    _nearbyHistoricalRecord = null;
+                    Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
+                }
+                return;
+            }
+
             var player = DalamudApi.ClientState.LocalPlayer;
             if (player == null)
                 return;
@@ -258,6 +282,27 @@ namespace EurekaHelper.System
         // 兩側各 22.5° 內，剛好對應這個扇區的解析度。
         private const float FanHalfAngleDegrees = 22.5f;
 
+        // Whether a world point falls within a single hint's fan - same direction ± half-angle
+        // and same distance-tier range that Draw() uses to render that hint's two edge lines.
+        private static bool MatchesHint(Vector2 point, TreasureHint hint)
+        {
+            var origin2D = new Vector2(hint.Origin.X, hint.Origin.Z);
+            var offset = point - origin2D;
+            var distance = offset.Length();
+            if (distance < hint.MinDistance || distance > hint.MaxDistance)
+                return false;
+
+            var angle = MathF.Atan2(offset.X, -offset.Y) * 180f / MathF.PI;
+            if (angle < 0)
+                angle += 360f;
+
+            var diff = MathF.Abs(angle - hint.AngleDegrees);
+            if (diff > 180f)
+                diff = 360f - diff;
+
+            return diff <= FanHalfAngleDegrees;
+        }
+
         // 原本畫一個以三角交會估算點為中心的圓圈，但交會點常常不穩定（提示方位太接近時會跑到
         // 很奇怪的地方）、範圍圈又大到看不出實際指向，玩家回報「太遠看不出來、到了也沒有縮小到
         // 有用的範圍」。改成從「該次提示當下」座標出發、朝提示方位延伸的扇形（兩條邊線），長度
@@ -279,21 +324,53 @@ namespace EurekaHelper.System
             EstimatedPosition = latestOrigin2D + latestDir * mid;
             EstimatedRadius = latest.MaxDistance;
 
-            // If the triangulated estimate lands close to somewhere treasure was found before
-            // (same territory), trust that historical spot over the bearing math and snap to it.
+            // A past TreasureFoundRecord (same territory) that falls within EVERY collected
+            // hint's fan (direction ± half-angle, distance within that hint's tier range) is a
+            // much stronger signal than the raw bearing math - it's an actual confirmed spot that
+            // still fits everything we've been told this round, so prioritize suggesting it over
+            // the geometric estimate.
             var territoryId = DalamudApi.ClientState.TerritoryType;
+            TreasureFoundRecord matchedRecord = null;
             foreach (var record in EurekaHelper.Config.TreasureHuntHistory)
             {
                 if (record.TerritoryId != territoryId)
                     continue;
 
                 var histPos2D = new Vector2(record.FoundPosition.X, record.FoundPosition.Z);
-                if (Vector2.Distance(EstimatedPosition.Value, histPos2D) > HistoricalPredictionMatchRadius)
-                    continue;
+                if (_hints.All(h => MatchesHint(histPos2D, h)))
+                {
+                    matchedRecord = record;
+                    break;
+                }
+            }
 
-                EstimatedPosition = histPos2D;
+            IsUsingHistoricalPosition = false;
+
+            if (matchedRecord != null)
+            {
+                EstimatedPosition = new Vector2(matchedRecord.FoundPosition.X, matchedRecord.FoundPosition.Z);
                 EstimatedRadius = 1f;
-                break;
+                IsUsingHistoricalPosition = true;
+            }
+            else
+            {
+                // Weaker fallback: nothing matched every hint's fan, but if the triangulated
+                // estimate itself lands close to somewhere treasure was found before, still trust
+                // that historical spot over the bearing math and snap to it.
+                foreach (var record in EurekaHelper.Config.TreasureHuntHistory)
+                {
+                    if (record.TerritoryId != territoryId)
+                        continue;
+
+                    var histPos2D = new Vector2(record.FoundPosition.X, record.FoundPosition.Z);
+                    if (Vector2.Distance(EstimatedPosition.Value, histPos2D) > HistoricalPredictionMatchRadius)
+                        continue;
+
+                    EstimatedPosition = histPos2D;
+                    EstimatedRadius = 1f;
+                    IsUsingHistoricalPosition = true;
+                    break;
+                }
             }
 
             if (!_splatoonReady || !Splatoon.IsConnected())
@@ -381,7 +458,10 @@ namespace EurekaHelper.System
             _hints.Clear();
             EstimatedPosition = null;
             EstimatedRadius = 0f;
+            IsUsingHistoricalPosition = false;
+            _nearbyHistoricalRecord = null;
             Splatoon.RemoveDynamicElements(LayerName);
+            Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
         }
 
         public void Dispose()

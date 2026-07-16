@@ -1333,6 +1333,13 @@ namespace EurekaHelper.Windows
                 ImGui.SameLine();
                 if (ImGui.Button(Loc.Text("Set Map Flag")))
                     Utils.SetFlagMarker((ushort)territoryType.Value.RowId, (ushort)territoryType.Value.Map.RowId, mapPos, openMap: true);
+
+                if (manager.IsUsingHistoricalPosition)
+                {
+                    ImGui.SameLine();
+                    ImGui.TextColored(ImGuiColors.HealerGreen, Loc.Text("(from history)"));
+                    Utils.SetTooltip(Loc.Text("This suggestion is a past confirmed dig site, not just a bearing estimate."));
+                }
             }
             else
             {
@@ -1344,7 +1351,7 @@ namespace EurekaHelper.Windows
             if (ImGui.BeginTable("TreasureHintsTable", 4,
                     ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
                     ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
-                    new Vector2(0, 200)))
+                    new Vector2(0, ImGui.GetTextLineHeightWithSpacing() * 4)))
             {
                 ImGui.TableSetupColumn(Loc.Text("Time"));
                 ImGui.TableSetupColumn(Loc.Text("Direction"));
