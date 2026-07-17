@@ -797,6 +797,8 @@ internal static class Loc
 		["Delete"] = "刪除",
 		["Overwrites this record's location with where you're currently standing."] = "用目前角色所在位置覆蓋這筆紀錄的座標。",
 		["Manual Trigger"] = "手動觸發",
+		["Retry"] = "重試",
+		["Flag Fortune's Rabbit"] = "標記幸福兔",
 		["(from history)"] = "(來自歷史紀錄)",
 		["This suggestion is a past confirmed dig site, not just a bearing estimate."] = "此建議座標為過去實際挖到的地點，不只是方位推算。",
 		["Manually sends the vnavmesh move-to-flag command right now, without waiting for a new hint."] = "立即手動發送 vnavmesh 走向旗標指令，不用等待新的尋寶提示。",

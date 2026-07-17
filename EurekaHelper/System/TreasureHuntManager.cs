@@ -471,6 +471,16 @@ namespace EurekaHelper.System
             Splatoon.RemoveDynamicElements(LayerName);
             Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
         }
+
+        // Manual retry for when Splatoon connection failed to establish on plugin load (e.g. the
+        // "Splatoon.Loaded" IPC broadcast happened before EurekaHelper subscribed, since Splatoon
+        // was already running). Re-running ECommonsMain.Init immediately re-checks whether
+        // Splatoon is currently loaded and, if so, connects right away instead of waiting for
+        // Splatoon's own next load/reload broadcast.
+        public void RetryConnection()
+        {
+            ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+        }
     }
 
     public class TreasureHint

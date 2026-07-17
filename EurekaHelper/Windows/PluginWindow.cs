@@ -1300,9 +1300,16 @@ namespace EurekaHelper.Windows
 
             ImGui.SameLine();
             if (manager.IsSplatoonReady)
+            {
                 ImGui.TextColored(ImGuiColors.HealerGreen, Loc.Text("Splatoon: Connected"));
+            }
             else
+            {
                 ImGui.TextColored(ImGuiColors.DalamudRed, Loc.Text("Splatoon: Not Connected (range circle won't be drawn - map flag still works)"));
+                ImGui.SameLine();
+                if (ImGui.Button(Loc.Text("Retry")))
+                    manager.RetryConnection();
+            }
 
             var autoMoveFlag = EurekaHelper.Config.TreasureHuntAutoMoveFlag;
             if (ImGui.Checkbox(Loc.Text("Auto-move to flag (requires vnavmesh)"), ref autoMoveFlag))
@@ -1315,6 +1322,20 @@ namespace EurekaHelper.Windows
             if (ImGui.Button(Loc.Text("Manual Trigger")))
                 Utils.SendMessage("/vnav moveflag");
             Utils.SetTooltip(Loc.Text("Manually sends the vnavmesh move-to-flag command right now, without waiting for a new hint."));
+
+            if (Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
+            {
+                var bunnyFates = Utils.GetEurekaTracker(DalamudApi.ClientState.TerritoryType).GetFates().Where(f => f.IsBunnyFate).ToList();
+                foreach (var bunnyFate in bunnyFates)
+                {
+                    if (ImGui.Button($"{Loc.Text("Flag Fortune's Rabbit")}##{bunnyFate.FateId}"))
+                        Utils.SetFlagMarker(bunnyFate, openMap: true);
+                    ImGui.SameLine();
+                }
+
+                if (bunnyFates.Count > 0)
+                    ImGui.NewLine();
+            }
 
             ImGui.Separator();
 
