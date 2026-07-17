@@ -1,0 +1,31 @@
+{
+  "Author": "Snowy, KangasZ, Lother",
+  "Name": "Eureka Helper",
+  "InternalName": "EurekaHelper",
+  "Description": "協助你進行優雷卡冒險的工具，已更新至《漂泊眾島》版本！輸入 /eurekahelper 開始使用。\n\n功能包含：\n- 遊戲內追蹤器 GUI\n- 副本追蹤器\n- 聖靈追蹤器\n- 魂武助手\n- 鬧鐘\n- 賺錢 NM 天氣時間提醒\n- 更多功能陸續推出",
+  "ApplicableVersion": "any",
+  "RepoUrl": "https://github.com/Lother/EurekaHelper",
+  "IconUrl": "https://raw.githubusercontent.com/Lother/DalamudPluginsTC/main/icons/EurekaHelper.png",
+  "Tags": [
+    "Eureka",
+    "Tracker",
+    "QoL",
+    "Instance",
+    "Weather",
+    "NM",
+    "Elemental",
+    "Fairy",
+    "Relic",
+    "Alarms"
+  ],
+  "CategoryTags": [
+    "Utility"
+  ],
+  "DalamudApiLevel": 12,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "優雷卡追蹤器與多項實用功能整合插件。",
+  "AcceptsFeedback": true
+}
