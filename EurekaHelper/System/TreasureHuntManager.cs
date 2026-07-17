@@ -30,7 +30,7 @@ namespace EurekaHelper.System
         // How close the player physically needs to walk to a past TreasureFoundRecord (same
         // territory) before a "dig here" marker is drawn at that historical spot - only while a
         // hunt is active (see OnFrameworkUpdate).
-        private const float HistoricalProximityRadius = 20f;
+        private const float HistoricalProximityRadius = 100f;
 
         // 8 方位 -> 從正北順時針量測的角度（度）。遊戲聊天文字用的是中文全形方位詞。
         private static readonly Dictionary<string, float> DirectionAngles = new()
@@ -46,23 +46,33 @@ namespace EurekaHelper.System
         };
 
         // 距離等級 -> 概略碼數區間（min, max）。原始數值取自玩家社群經驗分級，但比對
-        // TreasureHuntHistory 跟實際挖到座標的距離後發現不準，動過兩次：
+        // TreasureHuntHistory 跟實際挖到座標的距離後發現不準，動過三次：
         // 1. 第一版全部「打對折」下修 - 近距離（很近/不遠）修對了方向，但遠距離修過頭。
         // 2. 之後新增一筆乾淨的單目標連續10次提示資料（距離單調遞減：491.9→...→225.0 時是
         //    「很遠」、171.2→101.2 是「稍遠」、40.3 是「不遠」、9.0 是「很近」），顯示遠距離
         //    等級的真實碼數遠比對折後的數字大很多 - 距離等級不是線性縮放，遠距離區間本來就該
         //    寬很多。這版近距離沿用對折後的數字（有跨紀錄驗證），遠距離改用這筆乾淨資料校正。
-        // 「就在這附近」目前仍完全沒有樣本驗證，之後有資料要再檢查。
+        // 3. 累積到 28 筆完整紀錄後發現「很遠」的 500 碼上限還是抓太窄 - 實際樣本跨 199~1293
+        //    碼，而且是隨玩家靠近單調遞減到 500 以下才轉「稍遠」，代表 500 只是碰巧沒收集到更遠
+        //    的資料，不是真正的上限。改成無上限（用 float.MaxValue），交會/歷史比對（MatchesHint）
+        //    不再誤判超過 500 碼的「很遠」提示為不符合。畫面呈現用的長度/半徑另外夾在
+        //    FarTierRenderCap，避免對 Splatoon 疊層丟出無限長的線段。
+        // 「就在這附近」拿掉了 - 從沒收集到樣本驗證過這個字串／區間，抓錯字或亂猜區間風險比留著
+        // 高。沒收錄的話會落到 UnknownTierFallback，跟其他未知提示文字一樣處理。
         private static readonly Dictionary<string, (float Min, float Max)> DistanceTiers = new()
         {
-            ["很遠"] = (200f, 500f),
+            ["很遠"] = (200f, float.MaxValue),
             ["稍遠"] = (100f, 200f),
             ["不遠"] = (40f, 100f),
             ["很近"] = (10f, 40f),
-            ["就在這附近"] = (0f, 10f),
         };
 
         private static readonly (float Min, float Max) UnknownTierFallback = (40f, 200f);
+
+        // 「很遠」現在 Max 是 float.MaxValue（無上限，見上方 DistanceTiers 註解），僅用於
+        // MatchesHint 的距離比對。畫扇形線段/更新 EstimatedPosition、EstimatedRadius 時若直接
+        // 拿 MaxDistance 來用會得到無限長的線或 NaN 中點，所以另外夾這個視覺呈現用的碼數上限。
+        private const float FarTierRenderCap = 500f;
 
         private static readonly Regex HintRegex =
             new(@"財寶好像是在(?<dir>正東|正南|正西|正北|東北|東南|西南|西北)方向(?<tier>[^的]+?)的地方", RegexOptions.Compiled);
@@ -317,12 +327,14 @@ namespace EurekaHelper.System
             var latest = _hints[^1];
 
             // 順便更新 EstimatedPosition/EstimatedRadius，供 UI 分頁跟地圖旗標使用 - 沿最新一次
-            // 提示的方位角走到距離等級中點。
+            // 提示的方位角走到距離等級的下限（不取中點）。玩家會拿著胡蘿蔔一路收集提示，隨著
+            // 距離等級縮小標記點自然會跟著往寶藏逼近；取中點反而會讓標記點在提示還很粗略時就跳到
+            // 一個沒有實際意義的位置，取下限則保證「至少要走到這裡才可能是」，跟著提示鏈逐步逼近。
             var latestOrigin2D = new Vector2(latest.Origin.X, latest.Origin.Z);
             var latestDir = DirectionToVector(latest.AngleDegrees);
-            var mid = (latest.MinDistance + latest.MaxDistance) / 2f;
-            EstimatedPosition = latestOrigin2D + latestDir * mid;
-            EstimatedRadius = latest.MaxDistance;
+            var latestRenderMax = MathF.Min(latest.MaxDistance, FarTierRenderCap);
+            EstimatedPosition = latestOrigin2D + latestDir * latest.MinDistance;
+            EstimatedRadius = latestRenderMax - latest.MinDistance;
 
             // A past TreasureFoundRecord (same territory) that falls within EVERY collected
             // hint's fan (direction ± half-angle, distance within that hint's tier range) is a
@@ -390,7 +402,7 @@ namespace EurekaHelper.System
                 var origin2D = new Vector2(hint.Origin.X, hint.Origin.Z);
                 var leftDir = DirectionToVector(hint.AngleDegrees - FanHalfAngleDegrees);
                 var rightDir = DirectionToVector(hint.AngleDegrees + FanHalfAngleDegrees);
-                var length = MathF.Max(hint.MaxDistance, 3f);
+                var length = MathF.Max(MathF.Min(hint.MaxDistance, FarTierRenderCap), 3f);
                 var leftEdge = origin2D + leftDir * length;
                 var rightEdge = origin2D + rightDir * length;
 

@@ -79,6 +79,28 @@ ilspycmd -il -t "EurekaHelper.Windows.PluginWindow" "EurekaHelper/bin/Debug/Eure
 ```
 Confirm it matches TC's actual `Dalamud.dll` signature from the check above.
 
+## devPlugin load path: build with `-c Release`, and watch for the `x64` output-path trap
+
+Always build `-c Release` (not `Debug`) for a local dev build the game will
+actually load — `%appdata%\FFXIVSimpleLauncher\Dalamud\Config\dalamudConfig.json`'s
+`DevPluginLoadLocations` entry for this repo points at `bin\Release\EurekaHelper.dll`,
+and the live game already has Release-configured Dalamud DLLs loaded, so a Debug
+build is both the wrong path and a mismatched configuration.
+
+Separately: this csproj declares `<Platforms>x64</Platforms>`, which makes
+MSBuild's default `AppendPlatformToOutputPath=true` insert an extra `x64`
+segment — actual output lands at `bin\x64\Release\EurekaHelper.dll`, not the
+flat `bin\Release\EurekaHelper.dll` that `dalamudConfig.json` expects. Loading
+then fails with:
+```
+System.Exception: Plugin DLL file at 'D:\EurekaHelper\EurekaHelper\bin\Release\EurekaHelper.dll' did not exist, cannot load.
+```
+even though the build succeeded and the dll exists one folder over. Fixed by
+adding `<AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>` next
+to `<Platforms>x64</Platforms>`/`<PlatformTarget>x64</PlatformTarget>` in
+`EurekaHelper.csproj` (done 2026-07-17) — don't reintroduce this by removing
+that property or copying a different repo's csproj `PropertyGroup` over it.
+
 ## .NET SDK version
 
 Machine only has .NET SDK 9 (`dotnet --list-sdks`). If target csproj says

@@ -31,6 +31,10 @@
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<ProduceReferenceAssembly>false</ProduceReferenceAssembly>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<!-- Dalamud's dev-plugin path (dalamudConfig.json) points at bin\Release\EurekaHelper.dll
+		     directly, not bin\x64\Release - without this, Platforms=x64 above makes MSBuild append
+		     the platform segment and the dev plugin fails to load ("DLL file did not exist"). -->
+		<AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
     </PropertyGroup>
 
 	<PropertyGroup>
