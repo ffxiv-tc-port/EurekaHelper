@@ -372,7 +372,12 @@ namespace EurekaHelper.System
             string eventName = null;
             while (!token.IsCancellationRequested)
             {
-                var line = await reader.ReadLineAsync();
+                // Must pass token here, not just check it in the loop condition: ReadLineAsync()
+                // with no token awaits the next SSE line with no way to abort mid-read, so on a
+                // long-lived push stream, cancelling _cts didn't unblock this at all - Dispose()'s
+                // .Wait(2s) was hitting its full timeout on every listen task instead of returning
+                // immediately.
+                var line = await reader.ReadLineAsync(token);
                 if (line == null)
                     break; // stream closed by server
 
