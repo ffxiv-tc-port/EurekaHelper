@@ -28,13 +28,27 @@ namespace EurekaHelper.System
         // Ovni (1424) and Tristitia (1422) have no real "next possible spawn" prediction and no
         // reliable way to observe their actual completion time - so instead of trying to detect
         // the real end, the assumption is: this FATE typically runs for about 15 minutes once it
-        // starts, so treat (discovery time + 15 min) as its assumed "death" moment, then apply the
-        // normal 30-minute cooldown on top of that. If a "被...打倒了" chat line later confirms
-        // the NM was actually killed by players, that's a strictly better anchor than the assumed
-        // one - switch to the real kill time (still +30 min cooldown) instead.
+        // starts, so treat (discovery time + 15 min) as its assumed "death" moment, then apply a
+        // 20-minute cooldown on top of that - matching the community-verified ideal 35-minute
+        // full cycle (15 + 20) from spawn to next spawn. If a "被...打倒了" chat line later
+        // confirms the NM was actually killed by players (which can happen well before the
+        // assumed 15-minute mark, pulling the next spawn earlier), that's a strictly better
+        // anchor than the assumed one - switch to the real kill time, but with the longer
+        // 30-minute cooldown that applies specifically to a confirmed kill.
         private static readonly HashSet<ushort> AssumedDurationFateIds = new() { 1424, 1422 };
         private static readonly TimeSpan AssumedEventDuration = TimeSpan.FromMinutes(15);
-        private static readonly TimeSpan SpecialFateRespawnDuration = TimeSpan.FromMinutes(30);
+
+        // Public: also used by CookieBoxTracker to apply the same cooldown rules when reconciling
+        // Ovni/Tristitia's real spawnedAt/killedAt/isNatural data from the community tracker's
+        // /eureka/ba subtree, and by PluginWindow's BA tab to project the "ideal cycle" spawn
+        // predictions shown there.
+        public static readonly TimeSpan NaturalTimeoutRespawnDuration = TimeSpan.FromMinutes(20);
+        public static readonly TimeSpan ConfirmedKillRespawnDuration = TimeSpan.FromMinutes(30);
+
+        // The community-verified "ideal" full cycle length (assumed 15-minute FATE duration + the
+        // 20-minute natural-timeout cooldown) used to project further-out predictions beyond the
+        // first (actual) one - see DrawBaEncounterPrediction in PluginWindow.cs.
+        public static readonly TimeSpan IdealFullCycle = AssumedEventDuration + NaturalTimeoutRespawnDuration;
 
         // Matches e.g. "未確認飛行物體被<player>打倒了" - the system chat line for an enemy
         // actually being defeated, as opposed to the FATE simply completing/timing out (which
@@ -76,8 +90,9 @@ namespace EurekaHelper.System
 
                 // Real, precisely-timed kill confirmation beats the assumed-duration guess used
                 // at discovery time - record it now (silently, since discovery already notified)
-                // with the same 30-minute cooldown, anchored to this actual moment instead.
-                fate.SetRespawnDuration(SpecialFateRespawnDuration);
+                // with the 30-minute confirmed-kill cooldown, anchored to this actual moment
+                // instead.
+                fate.SetRespawnDuration(ConfirmedKillRespawnDuration);
                 DisplayFatePop(fate, DateTimeOffset.Now.ToUnixTimeMilliseconds(), notify: false);
             }
         }
@@ -156,7 +171,7 @@ namespace EurekaHelper.System
         // kill time if a "被...打倒了" confirmation line shows up before that assumed point.
         private static void HandleSpecialFateDiscovery(EurekaFate fate, bool notify)
         {
-            fate.SetRespawnDuration(SpecialFateRespawnDuration);
+            fate.SetRespawnDuration(NaturalTimeoutRespawnDuration);
             var assumedKillTimestamp = DateTimeOffset.Now.Add(AssumedEventDuration).ToUnixTimeMilliseconds();
             DisplayFatePop(fate, assumedKillTimestamp, notify);
         }

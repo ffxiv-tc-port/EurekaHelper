@@ -356,7 +356,21 @@ namespace EurekaHelper.System
         {
             Connected = false;
 
-            await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
+            // Bound the close handshake: CloseAsync with no timeout can block indefinitely if the
+            // server doesn't ack, and with up to 4 zone connections closing around the same time
+            // (plugin reload/dispose), that stacks up into a multi-second hitch on whichever thread
+            // is awaiting these in sequence. 2s is plenty for a normal graceful close; anything
+            // slower than that isn't worth waiting on - the socket gets torn down via Cancel() either way.
+            try
+            {
+                using var closeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", closeTimeout.Token);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Information($"Socket close handshake didn't complete cleanly, forcing teardown: {ex.Message}");
+            }
+
             CancellationTokenSource.Cancel();
             DalamudApi.Log.Information("Successfully closed the socket connection");
 

@@ -39,6 +39,12 @@ namespace EurekaHelper.Windows
         private static readonly EurekaConnectionManager[] Connections = new EurekaConnectionManager[5];
         private int SelectedTrackerZoneIndex = 1;
 
+        // Ovni (未確認飛行物體) and Tristitia (兵武塔調查支援) live in Hydatos's fate table
+        // (they share its TerritoryId/tracker) but are shown on their own dedicated "BA" tab
+        // instead of alongside Hydatos's regular NM roster - excluded from DrawTracker()'s normal
+        // zone table and rendered by DrawBaTab() instead (see DrawBaCompactView()).
+        private static readonly HashSet<ushort> BaFateIds = new() { 1424, 1422 };
+
         private EurekaConnectionManager Connection
         {
             get => Connections[SelectedTrackerZoneIndex] ??= new EurekaConnectionManager();
@@ -79,6 +85,12 @@ namespace EurekaHelper.Windows
                 if (ImGui.BeginTabItem(Loc.Text("Tracker")))
                 {
                     DrawTrackerTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem(Loc.Text("BA")))
+                {
+                    DrawBaTab();
                     ImGui.EndTabItem();
                 }
 
@@ -476,6 +488,231 @@ namespace EurekaHelper.Windows
             DrawTrackerTable();
         }
 
+        // Ovni/Tristitia share Hydatos's tracker connection (they're defined with Hydatos's
+        // TerritoryId/MapId in EurekaHydatos.cs), so this tab needs no connect/join UI of its own
+        // - it just borrows zone index 4 (Hydatos) for the duration of the draw and shows only
+        // those two fates plus the rest of the community tracker's BA data (tower occupancy,
+        // spawn predictions, host schedule - see BaFateIds/CookieBoxTracker's eureka/ba
+        // subscription). SelectedTrackerZoneIndex is restored afterward since it also drives the
+        // Tracker tab's Code/Password input boxes.
+        public void DrawBaTab()
+        {
+            var previousZoneIndex = SelectedTrackerZoneIndex;
+            SelectedTrackerZoneIndex = 4;
+            try
+            {
+                DrawBaCompactView();
+            }
+            finally
+            {
+                SelectedTrackerZoneIndex = previousZoneIndex;
+            }
+        }
+
+        // Ovni/Tristitia are the only two fates here (never more than 2 rows), and each has extra
+        // BA-specific data (tower occupancy blocking respawn, real spawnedAt/killedAt from the
+        // community tracker, host schedule) that doesn't fit the generic multi-NM sortable table
+        // used by the regular zone tabs - so this renders a small custom, non-tabular layout
+        // instead of reusing DrawTracker()'s table.
+        private void DrawBaCompactView()
+        {
+            ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
+            ImGui.BeginChild("EurekaTracker##Ba", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y), true);
+            ImGui.PopStyleColor();
+            ImGui.PopStyleVar();
+
+            if (!Connection.IsConnected())
+            {
+                if (Connection.IsInvalid())
+                    Utils.CenterText(Loc.Text("Invalid Tracker"));
+                else
+                    Utils.CenterText(Loc.Text("Not connected to a tracker"));
+
+                ImGui.EndChild();
+                return;
+            }
+
+            ImGui.Spacing();
+            ImGui.Indent();
+
+            DrawBaTowerStatus();
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            var fates = Connection.GetTracker()?.GetFates().Where(x => BaFateIds.Contains(x.FateId)).OrderBy(x => x.FateId).ToList()
+                        ?? new List<EurekaFate>();
+            foreach (var fate in fates)
+            {
+                var baState = fate.BossName == "Ovni"
+                    ? EurekaHelper.Plugin.CookieBoxTracker.GetBaJellyfishState()
+                    : EurekaHelper.Plugin.CookieBoxTracker.GetBaDeskState();
+
+                DrawBaEncounterRow(fate, baState);
+                ImGui.Spacing();
+            }
+
+            ImGui.Separator();
+            ImGui.Spacing();
+            DrawBaSchedule();
+
+            ImGui.Unindent();
+            ImGui.EndChild();
+        }
+
+        private void DrawBaTowerStatus()
+        {
+            var (hasPeople, at, reportedBy) = EurekaHelper.Plugin.CookieBoxTracker.GetBaTowerStatus();
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.Text(Loc.Text("Tower Status:"));
+            ImGui.SameLine();
+
+            if (hasPeople is null)
+                ImGui.TextDisabled(Loc.Text("Tower Status Unknown"));
+            else if (hasPeople.Value)
+                ImGui.TextColored(RedColorText, Loc.Text("Occupied"));
+            else
+                ImGui.TextColored(GreenColorText, Loc.Text("Empty"));
+
+            if (at > 0)
+            {
+                var reportedAt = DateTimeOffset.FromUnixTimeMilliseconds(at).ToLocalTime().DateTime;
+                ImGui.SameLine();
+                ImGui.TextDisabled(string.IsNullOrEmpty(reportedBy)
+                    ? $"({reportedAt:HH:mm})"
+                    : $"({reportedAt:HH:mm} - {reportedBy})");
+            }
+
+            if (hasPeople == true)
+                Utils.SetTooltip(Loc.Text("Ovni cannot respawn while the tower is occupied, per the community tracker."));
+        }
+
+        private void DrawBaEncounterRow(EurekaFate fate, (long SpawnedAt, long KilledAt, bool IsNatural, long PullTargetMs) baState)
+        {
+            ImGui.PushID(fate.FateId);
+
+            Loc.TryEurekaName(fate.BossName, out var bossNameText);
+            var isCurrentlyAlive = baState.SpawnedAt > 0 && baState.SpawnedAt > baState.KilledAt;
+
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextColored(PurpleColorText, $"[{fate.FateLevel}] {bossNameText ?? fate.BossName}");
+            ImGui.SameLine();
+
+            if (isCurrentlyAlive)
+                ImGui.TextColored(RedColorText, Loc.Text("Spawned"));
+            else if (fate.IsPopped())
+                ImGui.TextColored(OrangeColorText, $"{fate.GetRespawnTimeleft():hh\\:mm\\:ss}");
+            else
+                ImGui.TextColored(GreenColorText, Loc.Text("Ready"));
+
+            ImGui.SameLine();
+            if (Connection.CanModify())
+            {
+                if (isCurrentlyAlive)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, BlueColor);
+                    if (ImGui.SmallButton($"{Loc.Text("RESET")}##{fate.TrackerId}"))
+                        _ = Task.Run(async () => { await Connection.Reset((ushort)fate.TrackerId); });
+                    ImGui.PopStyleColor();
+                }
+                else if (!fate.IsPopped())
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, BlueColor);
+                    if (ImGui.SmallButton($"{Loc.Text("POP")}##{fate.TrackerId}"))
+                        _ = Task.Run(async () => { await Connection.SetPopTime((ushort)fate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds()); });
+                    ImGui.PopStyleColor();
+                }
+                else
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, RedColor);
+                    if (ImGui.SmallButton($"{Loc.Text("RESET")}##{fate.TrackerId}"))
+                        _ = Task.Run(async () => { await Connection.Reset((ushort)fate.TrackerId); });
+                    ImGui.PopStyleColor();
+                }
+            }
+
+            if (baState.SpawnedAt > 0)
+            {
+                var spawnedAtText = DateTimeOffset.FromUnixTimeMilliseconds(baState.SpawnedAt).ToLocalTime().ToString("HH:mm");
+                ImGui.TextDisabled($"{Loc.Text("Spawned at")} {spawnedAtText}");
+            }
+
+            if (baState.PullTargetMs > DateTimeOffset.UtcNow.ToUnixTimeMilliseconds())
+            {
+                var pullTimeLeft = TimeSpan.FromMilliseconds(baState.PullTargetMs - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                ImGui.SameLine();
+                ImGui.TextColored(OrangeColorText, $"{Loc.Text("Pull Timer:")} {pullTimeLeft:mm\\:ss}");
+            }
+
+            DrawBaEncounterPrediction(fate);
+
+            ImGui.PopID();
+        }
+
+        // Mirrors the community tracker's own "出現預測" popup: the first entry is the actual
+        // cooldown estimate for THIS occurrence (real kill time + whichever cooldown applied -
+        // see FateManager.NaturalTimeoutRespawnDuration/ConfirmedKillRespawnDuration), further
+        // entries are projected forward using the community-verified ideal 35-minute full cycle
+        // and get less reliable the further out they are (an early kill or new island can pull
+        // them in).
+        private static void DrawBaEncounterPrediction(EurekaFate fate)
+        {
+            if (fate.GetKilledAt() == -1)
+            {
+                ImGui.TextDisabled(Loc.Text("Insufficient data"));
+                return;
+            }
+
+            var next = fate.GetPoppedTime().Add(fate.RespawnDuration);
+            var sb = new StringBuilder();
+            for (var i = 0; i < 4; i++)
+            {
+                if (i > 0)
+                    sb.Append("   ");
+                sb.Append(next.ToString("HH:mm"));
+                next = next.Add(FateManager.IdealFullCycle);
+            }
+
+            ImGui.TextDisabled($"{Loc.Text("Predicted:")} {sb}");
+        }
+
+        private void DrawBaSchedule()
+        {
+            ImGui.Text(Loc.Text("Upcoming Schedule:"));
+
+            var schedule = EurekaHelper.Plugin.CookieBoxTracker.GetBaUpcomingSchedule(5);
+            if (schedule.Count == 0)
+            {
+                ImGui.TextDisabled(Loc.Text("No upcoming schedule"));
+                return;
+            }
+
+            foreach (var entry in schedule)
+            {
+                var start = DateTimeOffset.FromUnixTimeMilliseconds(entry.StartAt).ToLocalTime().DateTime;
+                var timeText = entry.EndAt > 0
+                    ? $"{start:MM/dd HH:mm}-{DateTimeOffset.FromUnixTimeMilliseconds(entry.EndAt).ToLocalTime():HH:mm}"
+                    : $"{start:MM/dd HH:mm}";
+
+                var line = $"{timeText}  {entry.SponsorName}";
+                if (!string.IsNullOrEmpty(entry.FinalStatus))
+                    line += $" ({entry.FinalStatus})";
+
+                ImGui.Text(line);
+                if (!string.IsNullOrEmpty(entry.Note))
+                {
+                    ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X + ImGui.GetCursorPosX());
+                    ImGui.TextDisabled(entry.Note);
+                    ImGui.PopTextWrapPos();
+                }
+
+                ImGui.Spacing();
+            }
+        }
+
         public async Task CreateTracker(int zoneId, bool printMessage = false)
         {
             (string trackerId, string password) = await EurekaConnectionManager.CreateTracker(zoneId);
@@ -522,11 +759,15 @@ namespace EurekaHelper.Windows
                     Loc.Format("Successfully exported the previous tracker: {0}", Utils.CombineUrl(Constants.EurekaTrackerLink, trackerId)));
         }
 
+        // Ovni/Tristitia are excluded here (BaFateIds) since they're shown on their own compact
+        // BA tab instead - see DrawBaCompactView().
         public void DrawTrackerTable()
         {
+            const string tableId = "TrackerTable";
+            Func<EurekaFate, bool> fateFilter = x => !BaFateIds.Contains(x.FateId);
             ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
-            ImGui.BeginChild("EurekaTracker",
+            ImGui.BeginChild($"EurekaTracker##{tableId}",
                 new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y), true);
             ImGui.PopStyleColor();
             ImGui.PopStyleVar();
@@ -534,7 +775,7 @@ namespace EurekaHelper.Windows
             if (Connection.IsConnected())
             {
                 var numColumns = 7;
-                if (ImGui.BeginTable("TrackerTable", numColumns,
+                if (ImGui.BeginTable(tableId, numColumns,
                         ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
                         ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings |
                         ImGuiTableFlags.Sortable | ImGuiTableFlags.SortTristate))
@@ -599,7 +840,7 @@ namespace EurekaHelper.Windows
                     ImGui.PopStyleVar();
                     ImGui.PopStyleColor();
 
-                    DrawTracker();
+                    DrawTracker(fateFilter);
 
                     ImGui.EndTable();
                 }
@@ -747,9 +988,9 @@ namespace EurekaHelper.Windows
             ImGui.EndChild();
         }
 
-        private void DrawTracker()
+        private void DrawTracker(Func<EurekaFate, bool> fateFilter)
         {
-            var zoneFates = Connection.GetTracker()?.GetFates().Where(x => x.IncludeInTracker).ToList();
+            var zoneFates = Connection.GetTracker()?.GetFates().Where(x => x.IncludeInTracker).Where(fateFilter).ToList();
             if (zoneFates is null)
                 return;
 

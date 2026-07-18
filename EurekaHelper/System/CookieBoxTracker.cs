@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using EurekaHelper.XIV;
 
 namespace EurekaHelper.System
 {
@@ -36,11 +37,31 @@ namespace EurekaHelper.System
         // connection since it lives outside the /eureka/state subtree our other stream watches.
         private const string TriggeringStreamPath = "/eureka/triggering.json";
 
+        // Baldesion Arsenal subtree - sibling of /eureka/state, holds live tower-occupancy
+        // reports, the two BA-only NMs' real spawnedAt/killedAt/isNatural (jellyfish = Ovni,
+        // desk = Tristitia - neither has a NM_DATA entry so they're absent from
+        // BossNameByShortKey/spawns above), and the community host/organizer schedule. Confirmed
+        // against the site's own source (index.html, getBaRef()).
+        private const string BaStreamPath = "/eureka/ba.json";
+
+        private static readonly Dictionary<string, string> BaBossNameByEncounterKey = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["jellyfish"] = "Ovni",
+            ["desk"] = "Tristitia",
+        };
+
         private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(15);
 
         // How old a spawn report's timestamp can be before it's treated as a backfilled record
         // (recorded silently) rather than a live discovery (which notifies).
         private static readonly TimeSpan BackfillThreshold = TimeSpan.FromMinutes(5);
+
+        // A remote report within this tolerance of what we already have (earlier OR later) is
+        // treated as "the same spawn, just observed with slightly different precision" and
+        // ignored - our own local timestamp (however it was obtained) stays authoritative.
+        // Anything outside the window - whether the remote report is earlier or later - is
+        // treated as genuinely new/corrected information and overwrites the local value.
+        private static readonly TimeSpan ReconcileTolerance = TimeSpan.FromMinutes(5);
 
         // Best-effort short-key -> EurekaFate.BossName map. The "lord"/"bao" category entries
         // (named short keys like "arthro") were reverse-engineered from observed
@@ -147,6 +168,18 @@ namespace EurekaHelper.System
         private readonly HashSet<string> _seenHistoryKeys = new();
         private readonly Task _listenTask;
         private readonly Task _triggeringListenTask;
+        private readonly Task _baListenTask;
+
+        // Raw merged state for each BA subtree node - kept as JObject (rather than parsed
+        // structs) because Firebase "patch" events can update a single field at a time (e.g.
+        // "jellyfish/killedAt") and merging into the existing object is simpler than tracking
+        // partial-struct updates. Read/written only under _baLock.
+        private readonly object _baLock = new();
+        private JObject _towerRaw = new();
+        private JObject _jellyfishRaw = new();
+        private JObject _deskRaw = new();
+        private readonly Dictionary<string, JObject> _scheduleByPushId = new();
+        private bool _baFirstEventProcessed;
 
         // Precondition-triggering mirror: nmId -> set of Discord user IDs currently marked as
         // grinding toward that NM's spawn. Only a count is surfaced to the UI (see
@@ -181,6 +214,60 @@ namespace EurekaHelper.System
         {
             _listenTask = Task.Run(() => ListenLoop(_cts.Token, StreamPath, HandleEvent, () => _firstEventProcessed = false));
             _triggeringListenTask = Task.Run(() => ListenLoop(_cts.Token, TriggeringStreamPath, HandleTriggeringEvent, null));
+            _baListenTask = Task.Run(() => ListenLoop(_cts.Token, BaStreamPath, HandleBaEvent, () => _baFirstEventProcessed = false));
+        }
+
+        // Tower occupancy as last reported on the site's 塔內狀況 panel. HasPeople is null when
+        // no report has ever been received (site's "狀態未知").
+        public (bool? HasPeople, long At, string ReportedBy) GetBaTowerStatus()
+        {
+            lock (_baLock)
+            {
+                if (_towerRaw.Count == 0)
+                    return (null, 0, null);
+
+                return ((bool?)_towerRaw["hasPeople"], (long?)_towerRaw["at"] ?? 0, (string)_towerRaw["by"]);
+            }
+        }
+
+        // Ovni's (未確認飛行物體) live spawnedAt/killedAt/isNatural/pull-timer state, straight
+        // from the community tracker's own reports - the same fields FateManager otherwise has to
+        // *guess* locally (see AssumedDurationFateIds). KilledAt/PullTargetMs are 0 when absent.
+        public (long SpawnedAt, long KilledAt, bool IsNatural, long PullTargetMs) GetBaJellyfishState()
+        {
+            lock (_baLock) return ExtractEncounterState(_jellyfishRaw);
+        }
+
+        // Tristitia's (兵武塔調查支援) equivalent of GetBaJellyfishState.
+        public (long SpawnedAt, long KilledAt, bool IsNatural, long PullTargetMs) GetBaDeskState()
+        {
+            lock (_baLock) return ExtractEncounterState(_deskRaw);
+        }
+
+        private static (long SpawnedAt, long KilledAt, bool IsNatural, long PullTargetMs) ExtractEncounterState(JObject raw) => (
+            (long?)raw["spawnedAt"] ?? 0,
+            (long?)raw["killedAt"] ?? 0,
+            (bool?)raw["isNatural"] ?? false,
+            (long?)raw["etPullTargetMs"] ?? (long?)raw["pullTargetMs"] ?? 0);
+
+        // Upcoming (not-yet-ended) 主催排班表 entries, soonest first.
+        public List<(string SponsorName, long StartAt, long EndAt, string Note, string FinalStatus)> GetBaUpcomingSchedule(int maxCount)
+        {
+            lock (_baLock)
+            {
+                var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return _scheduleByPushId.Values
+                    .Select(o => (
+                        SponsorName: (string)o["sponsorName"] ?? "?",
+                        StartAt: (long?)o["startAt"] ?? 0,
+                        EndAt: (long?)o["endAt"] ?? 0,
+                        Note: (string)o["note"] ?? string.Empty,
+                        FinalStatus: (string)o["finalStatus"] ?? string.Empty))
+                    .Where(x => x.EndAt == 0 || x.EndAt >= nowMs)
+                    .OrderBy(x => x.StartAt)
+                    .Take(maxCount)
+                    .ToList();
+            }
         }
 
         // How many people are currently marked as grinding the precondition kills toward this
@@ -427,12 +514,8 @@ namespace EurekaHelper.System
                 if (fate == null)
                     continue;
 
-                // Only ever move the pop time forward - never let a stale report from this
-                // external source overwrite a more recent local one.
-                if (timestamp <= fate.GetKilledAt())
+                if (!ReconcileKillTime(connection, fate, timestamp))
                     continue;
-
-                fate.SetKill(timestamp);
 
                 // A live event can still carry an old timestamp - e.g. someone using the site's
                 // "出現回報" button to backfill a pop that happened a while ago rather than one
@@ -445,6 +528,162 @@ namespace EurekaHelper.System
                 // in a second data source, so it's worth surfacing regardless of location.
                 if (notify && !isBackfill)
                     FateManager.DisplayFatePop(fate);
+            }
+        }
+
+        // Shared by ApplySpawn (regular NMs) and ReconcileBaEncounter (Ovni/Tristitia): applies a
+        // remote kill/pop timestamp to a local EurekaFate only if it differs from what we already
+        // have by more than ReconcileTolerance either way, then persists it to the shared tracker
+        // backend so it survives a plugin reload. Returns whether it was actually applied (the
+        // caller uses this to decide whether the change is also worth a notification).
+        private static bool ReconcileKillTime(EurekaConnectionManager connection, EurekaFate fate, long timestamp)
+        {
+            var localKilledAt = fate.GetKilledAt();
+            if (localKilledAt != -1 && Math.Abs(timestamp - localKilledAt) <= ReconcileTolerance.TotalMilliseconds)
+                return false;
+
+            fate.SetKill(timestamp);
+
+            if (fate.TrackerId is { } trackerId && connection.IsConnected() && connection.CanModify())
+                _ = Task.Run(async () => await connection.SetPopTime(trackerId, timestamp));
+
+            return true;
+        }
+
+        private void HandleBaEvent(string eventName, string json)
+        {
+            DalamudApi.Log.Verbose($"[CookieBoxTracker] ba event: {eventName}, data: {json}");
+
+            if (eventName != "put" && eventName != "patch")
+                return;
+
+            try
+            {
+                var payload = JObject.Parse(json);
+                var path = (string)payload["path"];
+                var data = payload["data"];
+
+                if (path == null)
+                    return;
+
+                var isInitial = !_baFirstEventProcessed;
+                _baFirstEventProcessed = true;
+
+                var baseSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                ProcessBaNode(baseSegments, data, isInitial);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Warning($"[CookieBoxTracker] Failed to process ba event: {ex.Message}");
+            }
+        }
+
+        // Same flat-or-nested path walking approach as ProcessNode, but for the /eureka/ba
+        // schema: towerState/jellyfish/desk are each a single object (patched a field at a time
+        // or replaced/cleared wholesale), schedule/<pushId> is one object per host-schedule row.
+        private void ProcessBaNode(string[] baseSegments, JToken node, bool isInitial)
+        {
+            if (baseSegments.Length == 2 && baseSegments[0] == "schedule")
+            {
+                if (node == null || node.Type == JTokenType.Null)
+                {
+                    lock (_baLock) _scheduleByPushId.Remove(baseSegments[1]);
+                }
+                else if (node is JObject scheduleObj)
+                {
+                    lock (_baLock) _scheduleByPushId[baseSegments[1]] = (JObject)scheduleObj.DeepClone();
+                }
+
+                return;
+            }
+
+            if (baseSegments.Length == 1 && (baseSegments[0] == "jellyfish" || baseSegments[0] == "desk"))
+            {
+                if (node == null || node.Type == JTokenType.Null)
+                {
+                    lock (_baLock)
+                    {
+                        if (baseSegments[0] == "jellyfish") _jellyfishRaw = new JObject();
+                        else _deskRaw = new JObject();
+                    }
+                }
+                else if (node is JObject encObj)
+                {
+                    lock (_baLock)
+                    {
+                        if (baseSegments[0] == "jellyfish") _jellyfishRaw = (JObject)encObj.DeepClone();
+                        else _deskRaw = (JObject)encObj.DeepClone();
+                    }
+                }
+
+                if (!isInitial)
+                    ReconcileBaEncounter(baseSegments[0]);
+
+                return;
+            }
+
+            if (baseSegments.Length == 1 && baseSegments[0] == "towerState")
+            {
+                lock (_baLock)
+                    _towerRaw = node is JObject towerObj ? (JObject)towerObj.DeepClone() : new JObject();
+
+                return;
+            }
+
+            if (node == null || node.Type == JTokenType.Null)
+                return;
+
+            if (node is JObject obj)
+            {
+                foreach (var prop in obj.Properties())
+                {
+                    var childSegments = baseSegments.Concat(prop.Name.Split('/', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+                    ProcessBaNode(childSegments, prop.Value, isInitial);
+                }
+                return;
+            }
+
+            // Leaf value patching a single field of an existing jellyfish/desk/towerState object
+            // (e.g. a "patch" carrying just "jellyfish/killedAt").
+            if (baseSegments.Length == 2 && (baseSegments[0] == "jellyfish" || baseSegments[0] == "desk"))
+            {
+                lock (_baLock)
+                {
+                    var target = baseSegments[0] == "jellyfish" ? _jellyfishRaw : _deskRaw;
+                    target[baseSegments[1]] = node;
+                }
+
+                if (!isInitial)
+                    ReconcileBaEncounter(baseSegments[0]);
+            }
+            else if (baseSegments.Length == 2 && baseSegments[0] == "towerState")
+            {
+                lock (_baLock) _towerRaw[baseSegments[1]] = node;
+            }
+        }
+
+        // Applies the community tracker's own observed killedAt (real kill or natural FATE
+        // timeout, per isNatural) for Ovni/Tristitia to our local EurekaFate - this is strictly
+        // better than FateManager's local guess (AssumedDurationFateIds), which only estimates a
+        // "death" moment because it has no way to directly observe the FATE's real completion.
+        private void ReconcileBaEncounter(string encounterKey)
+        {
+            var (_, killedAt, isNatural, _) = encounterKey == "jellyfish" ? GetBaJellyfishState() : GetBaDeskState();
+            if (killedAt <= 0)
+                return;
+
+            var bossName = BaBossNameByEncounterKey[encounterKey];
+            var respawnDuration = isNatural ? FateManager.NaturalTimeoutRespawnDuration : FateManager.ConfirmedKillRespawnDuration;
+
+            for (var zoneIndex = 1; zoneIndex <= 4; zoneIndex++)
+            {
+                var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
+                var fate = connection.GetTracker()?.GetFates().FirstOrDefault(f => f.BossName == bossName);
+                if (fate == null)
+                    continue;
+
+                if (ReconcileKillTime(connection, fate, killedAt))
+                    fate.SetRespawnDuration(respawnDuration);
             }
         }
 
@@ -581,8 +820,18 @@ namespace EurekaHelper.System
         public void Dispose()
         {
             _cts.Cancel();
+
+            // ConnectAndListen's SSE read loop awaits reader.ReadLineAsync() with no cancellation
+            // token - on a long-lived push stream, that can sit waiting for the server's next line
+            // indefinitely, so _cts.Cancel() alone doesn't unblock it. CancelPendingRequests() tears
+            // down the in-flight HttpClient request/stream directly, which makes that pending read
+            // throw immediately instead of each .Wait() below blocking the caller (Dalamud's plugin
+            // disable, on the main/framework thread) for its full timeout.
+            _httpClient.CancelPendingRequests();
+
             try { _listenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
             try { _triggeringListenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
+            try { _baListenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
             _httpClient.Dispose();
             _cts.Dispose();
         }
