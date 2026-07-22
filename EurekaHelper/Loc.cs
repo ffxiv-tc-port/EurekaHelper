@@ -894,6 +894,8 @@ internal static class Loc
 		["hours"] = "小時",
 		["minute"] = "分鐘",
 		["minutes"] = "分鐘",
+		["hr"] = "時",
+		["min"] = "分",
 		["Ready"] = "可觸發",
 		["Respawn"] = "重生",
 		["Night"] = "夜晚",

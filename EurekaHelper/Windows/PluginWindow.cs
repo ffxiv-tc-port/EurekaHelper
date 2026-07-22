@@ -1199,12 +1199,12 @@ namespace EurekaHelper.Windows
 
                             var width = ImGui.CalcTextSize("TIME").X;
                             ImGui.SetNextItemWidth(width);
-                            ImGui.InputText($"hr##{fate.TrackerId}", ref TimeAgoHours, 1,
+                            ImGui.InputText($"{Loc.Text("hr")}##{fate.TrackerId}", ref TimeAgoHours, 1,
                                 ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.CallbackCharFilter,
                                 IntegerCheck);
                             ImGui.SameLine();
                             ImGui.SetNextItemWidth(width);
-                            ImGui.InputText($"min##{fate.TrackerId}", ref TimeAgoMinutes, 2,
+                            ImGui.InputText($"{Loc.Text("min")}##{fate.TrackerId}", ref TimeAgoMinutes, 2,
                                 ImGuiInputTextFlags.CharsDecimal | ImGuiInputTextFlags.CallbackCharFilter,
                                 IntegerCheck);
                         }

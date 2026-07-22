@@ -157,9 +157,12 @@ namespace Dalamud
             var helpMessage = handlerDelegate.Method.GetCustomAttribute<HelpMessageAttribute>();
             var doNotShowInHelp = handlerDelegate.Method.GetCustomAttribute<DoNotShowInHelpAttribute>();
 
+            // HelpMessage is localized here at registration time - [HelpMessage] attribute
+            // arguments must be compile-time constants, so the English text stays in the
+            // attribute as the lookup key.
             var commandInfo = new CommandInfo(handlerDelegate)
             {
-                HelpMessage = helpMessage?.HelpMessage ?? string.Empty,
+                HelpMessage = helpMessage != null ? global::EurekaHelper.Loc.Text(helpMessage.HelpMessage) : string.Empty,
                 ShowInHelp = doNotShowInHelp == null,
             };
 
@@ -167,10 +170,10 @@ namespace Dalamud
             var commandInfoTuples = new List<(string, CommandInfo)> { (command?.Command, commandInfo) };
             if (aliases != null)
                 commandInfoTuples.AddRange(aliases.Aliases.Select(alias => (alias, 
-                    new CommandInfo(handlerDelegate) 
+                    new CommandInfo(handlerDelegate)
                     {
-                    HelpMessage = helpMessage?.HelpMessage ?? string.Empty,
-                    ShowInHelp = !aliases.Hidden 
+                    HelpMessage = helpMessage != null ? global::EurekaHelper.Loc.Text(helpMessage.HelpMessage) : string.Empty,
+                    ShowInHelp = !aliases.Hidden
                     }
                     ))
                 );
