@@ -67,7 +67,7 @@ namespace EurekaHelper.System
             }
 
             if (_dtrBarEntry != null)
-                _dtrBarEntry.OnClick = () => EurekaHelper.Plugin.PluginWindow.IsOpen ^= true;
+                _dtrBarEntry.OnClick = _ => EurekaHelper.Plugin.PluginWindow.IsOpen ^= true;
 
             // If the plugin (re)loaded while already standing inside an Eureka instance, seed the
             // "current" fields (and the DTR bar) too - InitZoneDetour won't fire again until the

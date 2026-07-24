@@ -4,6 +4,7 @@ using System.Numerics;
 using Dalamud.Interface;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Components;
@@ -166,22 +167,6 @@ namespace EurekaHelper.Windows
         // the user every frame if they manually click a different tab afterwards.
         private int _lastAutoSwitchedZoneIndex;
 
-        // ImGuiNET only exposes BeginTabItem(label, flags) bundled with a mandatory "ref bool
-        // p_open" parameter, which always draws a closeable "x" on the tab regardless of the
-        // bool's value - there's no managed overload for "flags but no close button". The native
-        // igBeginTabItem accepts a null p_open pointer for exactly that case, so call it directly
-        // to get ImGuiTabItemFlags (e.g. SetSelected for auto-switching zones) without an
-        // accidentally-clickable close button on each zone tab.
-        private static unsafe bool BeginTabItemNoClose(string label, ImGuiTabItemFlags flags)
-        {
-            var byteCount = Encoding.UTF8.GetByteCount(label);
-            Span<byte> buffer = stackalloc byte[byteCount + 1];
-            Encoding.UTF8.GetBytes(label, buffer);
-            buffer[byteCount] = 0;
-            fixed (byte* ptr = buffer)
-                return ImGuiNative.igBeginTabItem(ptr, null, flags) != 0;
-        }
-
         public void DrawTrackerTab()
         {
             var autoSwitchToZoneIndex = -1;
@@ -197,7 +182,7 @@ namespace EurekaHelper.Windows
                 {
                     var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
                     var flags = zoneIndex == autoSwitchToZoneIndex ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-                    if (BeginTabItemNoClose(zoneName, flags))
+                    if (ImGui.BeginTabItem(zoneName, flags))
                     {
                         SelectedTrackerZoneIndex = zoneIndex;
                         DrawTrackerZoneTab();
