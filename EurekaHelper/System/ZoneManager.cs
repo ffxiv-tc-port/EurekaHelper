@@ -8,9 +8,11 @@ using System.Threading.Tasks;
 
 namespace EurekaHelper.System
 {
+    // This isn't used :(
     public class ZoneManager
     {
         private delegate nint InitZoneDelegate(nint a1, int a2, nint a3);
+
         private readonly IDtrBarEntry _dtrBarEntry;
 
         // Last known server ID seen for each zone (index 1-4 = Anemos/Pagos/Pyros/Hydatos, 0
@@ -39,7 +41,7 @@ namespace EurekaHelper.System
             }
 
             DalamudApi.GameInteropProvider.InitializeFromAttributes(this);
-            InitZoneHook?.Enable();
+            //InitZoneHook?.Enable();
 
             var dtrBarTitle = "Eureka Helper";
             try
@@ -132,7 +134,8 @@ namespace EurekaHelper.System
                 DalamudApi.Log.Error(Loc.Format("Something went wrong. Please contact the author.\n{0}", ex.Message));
             }
 
-            return InitZoneHook.Original(a1, a2, a3);
+            //return InitZoneHook.Original(a1, a2, a3);
+            return 1;
         }
 
         // Leaving a zone no longer touches its tracker connection at all - you can zone in and
@@ -285,7 +288,7 @@ namespace EurekaHelper.System
 
         public void Dispose()
         {
-            InitZoneHook?.Dispose();
+            //InitZoneHook?.Dispose();
             _dtrBarEntry?.Remove();
         }
     }
