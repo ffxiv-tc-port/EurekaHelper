@@ -116,6 +116,8 @@ namespace EurekaHelper.System
             // 避免在 SplatoonManager 已停用（EnableSplatoonAggroRanges=false）時把另一個仍在用
             // 的 Splatoon 連線關掉、或造成重複釋放。
             ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+
+            DalamudApi.ChatGui.ChatMessage += OnChatMessage;
         }
 
         // Continuously checks whether the player has walked within HistoricalProximityRadius of
