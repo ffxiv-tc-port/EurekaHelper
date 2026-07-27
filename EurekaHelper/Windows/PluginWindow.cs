@@ -775,10 +775,12 @@ namespace EurekaHelper.Windows
             if (Connection.IsConnected())
             {
                 var numColumns = 7;
+                ImGui.PushStyleColor(ImGuiCol.TableRowBg, new Vector4(1.0f, 1.0f, 1.0f, 0.0f));
+                ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, new Vector4(1.0f, 1.0f, 1.0f, 0.12f));
                 if (ImGui.BeginTable(tableId, numColumns,
                         ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
                         ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings |
-                        ImGuiTableFlags.Sortable | ImGuiTableFlags.SortTristate))
+                        ImGuiTableFlags.Sortable | ImGuiTableFlags.SortTristate | ImGuiTableFlags.RowBg))
                 {
                     var levelTableColumnFlags = ImGuiTableColumnFlags.WidthFixed;
                     if (!EurekaHelper.Config.ShowLevelInTrackerTable)
@@ -844,6 +846,8 @@ namespace EurekaHelper.Windows
 
                     ImGui.EndTable();
                 }
+
+                ImGui.PopStyleColor(2);
             }
             else
             {
