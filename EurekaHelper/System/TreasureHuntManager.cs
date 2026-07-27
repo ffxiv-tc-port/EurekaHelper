@@ -94,10 +94,18 @@ namespace EurekaHelper.System
         // 給 UI 顯示連線狀態用：Splatoon 疊層圓圈需要遊戲裡真的裝了「Splatoon」這個 Dalamud
         // 外掛且已連上 ECommons IPC，才會實際畫出來 - 沒裝的話這裡會一直是 false，但地圖旗標
         // （SetMapFlag）不受影響，仍會照常更新。
-        public bool IsSplatoonReady => _splatoonReady && Splatoon.IsConnected();
+        //
+        // NOTE: read straight from Splatoon.IsConnected() rather than a locally-tracked "ready"
+        // flag set via Splatoon.SetOnConnect(). That callback is a single static slot
+        // (ECommons.SplatoonAPI.Splatoon.OnConnect), not a multicast event - SplatoonManager also
+        // calls SetOnConnect from its own constructor (when EnableSplatoonAggroRanges is on) and,
+        // being constructed after this class, permanently overwrites whichever callback registered
+        // first. That silently broke this tab's "connected" status forever (retry included, since
+        // retry only re-runs Splatoon's own connect check - it doesn't restore this class's
+        // callback), even though Splatoon.Instance was actually set correctly the whole time.
+        public bool IsSplatoonReady => Splatoon.IsConnected();
 
         private readonly List<TreasureHint> _hints = new();
-        private bool _splatoonReady;
         private TreasureFoundRecord _nearbyHistoricalRecord;
 
         public TreasureHuntManager()
@@ -108,12 +116,7 @@ namespace EurekaHelper.System
             // 避免在 SplatoonManager 已停用（EnableSplatoonAggroRanges=false）時把另一個仍在用
             // 的 Splatoon 連線關掉、或造成重複釋放。
             ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
-            Splatoon.SetOnConnect(OnSplatoonConnect);
-
-            DalamudApi.ChatGui.ChatMessage += OnChatMessage;
         }
-
-        private void OnSplatoonConnect() => _splatoonReady = true;
 
         // Continuously checks whether the player has walked within HistoricalProximityRadius of
         // a past TreasureFoundRecord and keeps a solid green "dig here" marker drawn at that spot
@@ -160,7 +163,7 @@ namespace EurekaHelper.System
 
             _nearbyHistoricalRecord = nearest;
 
-            if (!_splatoonReady || !Splatoon.IsConnected())
+            if (!Splatoon.IsConnected())
                 return;
 
             Splatoon.RemoveDynamicElements(HistoryMarkerLayerName);
@@ -385,7 +388,7 @@ namespace EurekaHelper.System
                 }
             }
 
-            if (!_splatoonReady || !Splatoon.IsConnected())
+            if (!Splatoon.IsConnected())
                 return;
 
             Splatoon.RemoveDynamicElements(LayerName);

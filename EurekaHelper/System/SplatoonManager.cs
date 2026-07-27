@@ -100,7 +100,6 @@ namespace EurekaHelper.System
         private readonly string _seenMonstersPath;
         private Dictionary<string, List<AggroRangeConfig>> _aggroRanges = new();
         private HashSet<string> _seenMonsters = new();
-        private bool _splatoonReady = false;
 
         // "變異怪物" (mutant field mobs, unrelated to NM/aggro-range tracking above): under
         // certain weather/time-of-day, a normal mob has no status at all until it triggers, at
@@ -139,11 +138,16 @@ namespace EurekaHelper.System
                 DalamudApi.Framework.Update += OnFrameworkUpdate;
         }
 
-        private void OnSplatoonConnect()
-        {
-            _splatoonReady = true;
-            DrawForCurrentZone();
-        }
+        // NOTE: Splatoon.SetOnConnect is a single static callback slot (ECommons.SplatoonAPI.
+        // Splatoon.OnConnect), not a multicast event - only ONE manager's registration survives at
+        // a time. TreasureHuntManager used to also call SetOnConnect from its own constructor
+        // (always run, earlier than this one); since this class is constructed after it (only
+        // when EnableSplatoonAggroRanges is on), it silently overwrote TreasureHuntManager's
+        // callback and permanently broke that tab's "connected" status. Fixed by having
+        // TreasureHuntManager read Splatoon.IsConnected() directly instead of relying on this
+        // callback at all - this class still owns the slot (it actually needs the "just
+        // (re)connected" edge to trigger an immediate redraw, not just a status flag).
+        private void OnSplatoonConnect() => DrawForCurrentZone();
 
         private void OnTerritoryChanged(ushort territoryId)
         {
@@ -321,7 +325,7 @@ namespace EurekaHelper.System
         // own onlyTargetable/redraw cycle catches up - accepted rather than fought.
         private void DrawMutationStatus()
         {
-            if (!_splatoonReady || !Splatoon.IsConnected())
+            if (!Splatoon.IsConnected())
                 return;
 
             var (monsters, currentWeather) = DalamudApi.ClientState.TerritoryType switch
@@ -504,7 +508,7 @@ namespace EurekaHelper.System
 
         public void DrawForCurrentZone()
         {
-            if (!_splatoonReady || !Splatoon.IsConnected())
+            if (!Splatoon.IsConnected())
                 return;
 
             if (!Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
