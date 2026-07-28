@@ -245,10 +245,10 @@ namespace EurekaHelper.System
 
                 if (notify && EurekaHelper.Config.DisplayFatePop)
                 {
-                    DalamudApi.PluginInterface.RemoveChatLinkHandler(fate.FateId);
+                    DalamudApi.ChatGui.RemoveChatLinkHandler(fate.FateId);
                     if (EurekaHelper.Config.PayloadOptions != PayloadOptions.Nothing)
                     {
-                        DalamudLinkPayload payload = DalamudApi.PluginInterface.AddChatLinkHandler(fate.FateId, (i, m) =>
+                        DalamudLinkPayload payload = DalamudApi.ChatGui.AddChatLinkHandler(fate.FateId, (i, m) =>
                         {
                             Utils.SetFlagMarker(fate, randomizeCoords: EurekaHelper.Config.RandomizeMapCoords);
 
