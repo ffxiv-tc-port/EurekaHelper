@@ -49,7 +49,14 @@
 
 	<ItemGroup>
 		<PackageReference Include="DalamudPackager" Version="13.0.0" />
-		<PackageReference Include="ECommons" Version="3.0.0.8" />
+		<!-- 3.0.0.8 是 API12 時代的二進位套件:其 Svc 服務定位器仍宣告 [PluginService] IGameNetwork,
+		     而 API13 Dalamud 已移除 GameNetwork 外掛服務(介面標記 Obsolete、無 ResolveVia 註冊),
+		     導致 Create<Svc>() 在屬性注入階段擲出例外、Svc.Log 永遠是 null,ECommons 自己的錯誤
+		     處理路徑(PluginLog.Error)再引發 NullReferenceException 蓋掉真正的錯誤,外掛載入直接
+		     失敗。3.0.0.18-api13 是 API13 世代的對應版本(同 fleet 驗證過的 d258fccf 源碼世系,
+		     Svc 已拿掉 IGameNetwork 注入、改用 Dalamud.Bindings.ImGui),36 個宣告服務全數與
+		     Dalamud 13.0.0.6 的 ResolveVia 註冊表比對過。 -->
+		<PackageReference Include="ECommons" Version="3.0.0.18-api13" />
 		<Reference Include="FFXIVClientStructs">
 			<HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
 			<Private>false</Private>
