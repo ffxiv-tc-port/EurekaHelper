@@ -1,4 +1,7 @@
 ﻿using Dalamud.Game.Gui.Dtr;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using Dalamud.Logging;
 using Dalamud.Memory;
@@ -87,10 +90,24 @@ namespace EurekaHelper.System
 
                 if (CurrentServerId != 0 && EurekaHelper.Config.DisplayServerIdInServerInfo && _dtrBarEntry != null)
                 {
-                    _dtrBarEntry.Text = Loc.Format("Server ID: {0}", CurrentServerId);
-                    _dtrBarEntry.Shown = true;
+                    SetDtrServerId(CurrentServerId, Utils.GetZoneName(currentTerritory));
                 }
             }
+        }
+
+        /// <summary>
+        /// 資訊列只放圖示，伺服器 ID 移到滑鼠說明——那一格空間很擠，而且 ID 是偶爾才需要看的資訊。
+        /// ElementalLevel（元素等級）是優雷卡專屬圖示，一眼就認得出是哪個外掛。
+        /// </summary>
+        private void SetDtrServerId(ushort serverId, string zoneName)
+        {
+            if (_dtrBarEntry == null)
+                return;
+
+            _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
+            _dtrBarEntry.Tooltip = new SeString(new TextPayload(
+                $"Eureka Helper\n{(string.IsNullOrEmpty(zoneName) ? "優雷卡" : zoneName)}\n伺服器 ID：{serverId}\n\n點擊：開啟追蹤器視窗"));
+            _dtrBarEntry.Shown = true;
         }
 
         [Signature("E8 ?? ?? ?? ?? 45 33 C0 48 8D ?? ?? 8B ?? E8 ?? ?? ?? ?? 48 8D ??", DetourName = nameof(InitZoneDetour))]
@@ -110,13 +127,7 @@ namespace EurekaHelper.System
                         EurekaHelper.PrintMessage(Loc.Format("{0} Server ID: {1}", zoneName, serverId));
 
                     if (EurekaHelper.Config.DisplayServerIdInServerInfo)
-                    {
-                        if (_dtrBarEntry != null)
-                        {
-                            _dtrBarEntry.Text = Loc.Format("Server ID: {0}", serverId);
-                            _dtrBarEntry.Shown = true;
-                        }
-                    }
+                        SetDtrServerId(serverId, zoneName);
 
                     HandleZoneEntry(Utils.GetIndexOfZone(zoneId), serverId);
                 }
