@@ -114,7 +114,7 @@ namespace EurekaHelper.System
 
             _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
             _dtrBarEntry.Tooltip = new SeString(new TextPayload(
-                $"Eureka Helper\n{(string.IsNullOrEmpty(zoneName) ? "優雷卡" : zoneName)}\n伺服器 ID：{serverId}\n\n點擊：開啟追蹤器視窗"));
+                $"{(string.IsNullOrEmpty(zoneName) ? "優雷卡" : zoneName)}\n伺服器 ID：{serverId}\n\n點擊：開啟追蹤器視窗\n\nEureka Helper"));
             _dtrBarEntry.Shown = true;
         }
 
@@ -129,7 +129,7 @@ namespace EurekaHelper.System
 
             _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
             _dtrBarEntry.Tooltip = new SeString(new TextPayload(
-                "Eureka Helper\n目前不在優雷卡（沒有伺服器 ID）\n\n點擊：開啟追蹤器視窗"));
+                "目前不在優雷卡（沒有伺服器 ID）\n\n點擊：開啟追蹤器視窗\n\nEureka Helper"));
             _dtrBarEntry.Shown = true;
         }
 
