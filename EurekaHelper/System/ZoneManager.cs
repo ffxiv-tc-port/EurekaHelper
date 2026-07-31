@@ -41,7 +41,10 @@ namespace EurekaHelper.System
             }
 
             DalamudApi.GameInteropProvider.InitializeFromAttributes(this);
-            //InitZoneHook?.Enable();
+            // 這行曾在 2026-07-24 的 API13 遷移合併裡被誤留成註解狀態（合併訊息寫的是保留可動版本，
+            // 實際 diff 卻採了上游的停用版），導致伺服器 ID 顯示與「進區自動開追蹤器」一起失效——
+            // 兩者的唯一觸發點都是這個 detour。
+            InitZoneHook?.Enable();
 
             var dtrBarTitle = "Eureka Helper";
             try
@@ -134,8 +137,12 @@ namespace EurekaHelper.System
                 DalamudApi.Log.Error(Loc.Format("Something went wrong. Please contact the author.\n{0}", ex.Message));
             }
 
-            //return InitZoneHook.Original(a1, a2, a3);
-            return 1;
+            // ⚠️ 一定要把控制權交回遊戲。這裡曾經是 `return 1;`（hook 停用期間留下的殘骸）——
+            // 若在啟用 hook 的情況下留著它，detour 會「取代」而不是「攔截」遊戲的進區初始化：
+            // 0x70 bytes 的封包 payload 不會被搬進全域物件、進區旗標不會設、三個子呼叫全部不執行，
+            // 結果是一進優雷卡就壞掉。回傳值本身無害（反組譯確認呼叫端丟棄 RAX），
+            // 傷害純粹來自跳過副作用。
+            return InitZoneHook.Original(a1, a2, a3);
         }
 
         // Leaving a zone no longer touches its tracker connection at all - you can zone in and
@@ -288,7 +295,7 @@ namespace EurekaHelper.System
 
         public void Dispose()
         {
-            //InitZoneHook?.Dispose();
+            InitZoneHook?.Dispose();
             _dtrBarEntry?.Remove();
         }
     }
