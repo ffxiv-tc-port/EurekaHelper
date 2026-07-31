@@ -88,10 +88,18 @@ namespace EurekaHelper.System
                 CurrentZoneIndex = zoneIndex;
                 CurrentServerId = LastServerIdPerZone[zoneIndex];
 
-                if (CurrentServerId != 0 && EurekaHelper.Config.DisplayServerIdInServerInfo && _dtrBarEntry != null)
+                if (EurekaHelper.Config.DisplayServerIdInServerInfo)
                 {
-                    SetDtrServerId(CurrentServerId, Utils.GetZoneName(currentTerritory));
+                    if (CurrentServerId != 0)
+                        SetDtrServerId(CurrentServerId, Utils.GetZoneName(currentTerritory));
+                    else
+                        SetDtrOutsideEureka();   // 在優雷卡但還沒拿到 ID（例如剛重載外掛）
                 }
+            }
+            else if (EurekaHelper.Config.DisplayServerIdInServerInfo)
+            {
+                // 在優雷卡之外載入外掛時也要把這一格初始化，否則它會停在預設的空白狀態。
+                SetDtrOutsideEureka();
             }
         }
 
@@ -107,6 +115,21 @@ namespace EurekaHelper.System
             _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
             _dtrBarEntry.Tooltip = new SeString(new TextPayload(
                 $"Eureka Helper\n{(string.IsNullOrEmpty(zoneName) ? "優雷卡" : zoneName)}\n伺服器 ID：{serverId}\n\n點擊：開啟追蹤器視窗"));
+            _dtrBarEntry.Shown = true;
+        }
+
+        /// <summary>
+        /// 不在優雷卡時也保留這一格：它同時是「點擊開啟追蹤器」的按鈕，
+        /// 在外面查 NM 時間一樣用得到，只是沒有伺服器 ID 可顯示。
+        /// </summary>
+        private void SetDtrOutsideEureka()
+        {
+            if (_dtrBarEntry == null)
+                return;
+
+            _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
+            _dtrBarEntry.Tooltip = new SeString(new TextPayload(
+                "Eureka Helper\n目前不在優雷卡（沒有伺服器 ID）\n\n點擊：開啟追蹤器視窗"));
             _dtrBarEntry.Shown = true;
         }
 
@@ -133,11 +156,11 @@ namespace EurekaHelper.System
                 }
                 else
                 {
-                    if (_dtrBarEntry != null)
-                    {
-                        _dtrBarEntry.Text = "";
+                    // 離開優雷卡：不再隱藏整格，改成保留圖示但說明改為「沒有伺服器 ID」。
+                    if (EurekaHelper.Config.DisplayServerIdInServerInfo)
+                        SetDtrOutsideEureka();
+                    else if (_dtrBarEntry != null)
                         _dtrBarEntry.Shown = false;
-                    }
 
                     CurrentZoneIndex = 0;
                     CurrentServerId = 0;
