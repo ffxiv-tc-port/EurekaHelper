@@ -32,6 +32,7 @@ namespace EurekaHelper;
         internal readonly AlarmManager AlarmManager;
         internal readonly TreasureHuntManager TreasureHuntManager;
         internal SplatoonManager SplatoonManager;
+        internal HazardManager HazardManager;
         internal CookieBoxTracker CookieBoxTracker;
 
         public EurekaHelper(IDalamudPluginInterface pluginInterface)
@@ -53,6 +54,9 @@ namespace EurekaHelper;
 
             if (Config.EnableSplatoonAggroRanges)
                 SplatoonManager = new();
+
+            if (Config.EnableHazardMarkers)
+                HazardManager = new();
 
             PluginWindow = new(this);
             RelicWindow = new(this);
@@ -266,6 +270,7 @@ namespace EurekaHelper;
             AlarmManager.Dispose();
             TreasureHuntManager.Dispose();
             SplatoonManager?.Dispose();
+            HazardManager?.Dispose();
             CookieBoxTracker?.Dispose();
             PluginWindow.DisposeAllConnections();
             DalamudApi.ChatGui.RemoveChatLinkHandler();

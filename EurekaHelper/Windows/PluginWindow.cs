@@ -110,6 +110,12 @@ namespace EurekaHelper.Windows
                     ImGui.EndTabItem();
                 }
 
+                if (EurekaHelper.Config.EnableHazardMarkers && ImGui.BeginTabItem(Loc.Text("Hazards")))
+                {
+                    DrawHazardsTab();
+                    ImGui.EndTabItem();
+                }
+
                 if (ImGui.BeginTabItem(Loc.Text("Configuration")))
                 {
                     DrawSettingsTab();
@@ -1587,6 +1593,26 @@ namespace EurekaHelper.Windows
                     ImGui.TextColored(ImGuiColors.HealerGreen, Loc.Text("(from history)"));
                     Utils.SetTooltip(Loc.Text("This suggestion is a past confirmed dig site, not just a bearing estimate."));
                 }
+                else
+                {
+                    // 「X: 12.3, Y: 45.6」看起來精確到小數點，但它可能是一個誤差好幾百碼的
+                    // 幾何推算 —— 誤差本身必須跟座標一起出現在列上，不能只放 tooltip，否則
+                    // 玩家會把粗略推算當成確定位置。
+                    ImGui.SameLine();
+                    if (manager.EstimateUncertainty is { } uncertainty)
+                    {
+                        ImGui.TextDisabled(Loc.Format("+/- {0:0}y", uncertainty));
+                        Utils.SetTooltip(Loc.Text("How wide the current distance tier is. Collect more hints (use another Lucky Carrot) to narrow it down."));
+                    }
+                    else
+                    {
+                        ImGui.TextColored(ImGuiColors.DalamudOrange, Loc.Text("+/- ? (no upper bound)"));
+                        Utils.SetTooltip(Loc.Text("The latest hint's distance tier has no known upper limit, so the distance really is unknown - the treasure could be much further than the drawn lines suggest. Only the direction is meaningful right now."));
+                    }
+                }
+
+                ImGui.SameLine();
+                ImGui.TextDisabled(Loc.Format("({0} hint(s))", manager.Hints.Count));
             }
             else
             {
@@ -1687,6 +1713,194 @@ namespace EurekaHelper.Windows
 
                 ImGui.EndTable();
             }
+        }
+
+        // 「隱藏危險」分頁：優雷卡／兵武塔的隱藏陷阱與傳送門，兩態標示（可能有／已確認）。
+        // 資料模型與兩態語意抄自 PalacePal，顯示風格抄自 NecroLens —— 見
+        // System/HazardManager.cs 的類別註解。
+        private void DrawHazardsTab()
+        {
+            var manager = EurekaHelper.Plugin.HazardManager;
+            if (manager == null)
+            {
+                Utils.CenterText(Loc.Text("Hazard marking is turned off."));
+                return;
+            }
+
+            ImGui.TextWrapped(Loc.Text("Marks hidden traps and portals in Eureka / the Baldesion Arsenal in two states: \"possible\" (found here on an earlier visit, not visible right now) and \"confirmed\" (visible right now)."));
+            ImGui.TextWrapped(Loc.Text("This ships with NO built-in locations. Hidden objects have no name in the game's own data, so there is no offline table that says which object is a trap - you classify what you run into below, and only classified objects start accumulating positions."));
+            ImGui.Spacing();
+
+            if (manager.IsSplatoonReady)
+            {
+                ImGui.TextColored(ImGuiColors.HealerGreen, Loc.Text("Splatoon: Connected"));
+            }
+            else
+            {
+                ImGui.TextColored(ImGuiColors.DalamudRed, Loc.Text("Splatoon: Not Connected (nothing will be drawn in-game)"));
+            }
+
+            // 目前所在地：兵武塔的樓層名是台服 EXD 實查來的（Map 520/521/524/525/526/527），
+            // 野外則留空。
+            var currentMapId = DalamudApi.ClientState.MapId;
+            var floorLabel = HazardManager.GetMapLabel(currentMapId);
+            ImGui.Text(Loc.Text("Current area:"));
+            ImGui.SameLine();
+            if (!string.IsNullOrEmpty(floorLabel))
+                ImGui.TextColored(ImGuiColors.DalamudYellow, floorLabel);
+            else
+                ImGui.Text(Loc.Format("Map {0}", currentMapId));
+
+            // 列上直接顯示兩態計數。⚠️ 沒有任何分類時要顯示「尚未分類」而不是「0 / 0」——
+            // 把「還不知道」畫成 0 會讓玩家以為「這張圖已經確認沒有陷阱」。
+            var anyClassified = manager.GetCatalogue().Keys.Any(id => manager.GetClassification(id) is HazardKind.Trap or HazardKind.Portal);
+            ImGui.Text(Loc.Text("This map:"));
+            ImGui.SameLine();
+            if (!anyClassified)
+            {
+                ImGui.TextDisabled(Loc.Text("nothing classified yet - unknown, not \"none\""));
+                Utils.SetTooltip(Loc.Text("Until you classify at least one object as a trap or portal, this plugin has no idea whether this map has any. That is different from knowing there are none."));
+            }
+            else
+            {
+                var (confirmed, possible) = manager.GetCurrentMapCounts();
+                ImGui.TextColored(ImGuiColors.DalamudRed, Loc.Format("{0} confirmed", confirmed));
+                ImGui.SameLine();
+                ImGui.TextColored(ImGuiColors.DalamudGrey, Loc.Format("/ {0} possible", possible));
+                Utils.SetTooltip(Loc.Text("\"Confirmed\" = visible in the object table right now (drawn solid). \"Possible\" = recorded on an earlier visit but not visible right now (drawn dim)."));
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.CollapsingHeader(Loc.Text("Discovered objects (classify here)"), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                ImGui.TextWrapped(Loc.Text("Every event object seen in Eureka this session, one row per Data ID. Set the ones that turned out to be traps or portals; everything else can stay unclassified."));
+
+                var catalogue = manager.GetCatalogue().OrderBy(x => x.Key).ToList();
+                if (catalogue.Count == 0)
+                {
+                    ImGui.TextDisabled(Loc.Text("Nothing discovered yet - walk around Eureka with this enabled."));
+                }
+                else if (ImGui.BeginTable("HazardCatalogueTable", 4,
+                             ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
+                             ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
+                             new Vector2(0, 220)))
+                {
+                    ImGui.TableSetupColumn(Loc.Text("Data ID"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Name"));
+                    ImGui.TableSetupColumn(Loc.Text("First Seen"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Classification"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableHeadersRow();
+
+                    var kindNames = Loc.EnumNames<HazardKind>();
+
+                    foreach (var (dataId, entry) in catalogue)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.Text(dataId.ToString());
+
+                        ImGui.TableNextColumn();
+                        // 隱藏物件在遊戲資料裡本來就沒有名字 —— 顯示成灰字「(無名稱)」而不是
+                        // 空白，空白看起來像抓取失敗。
+                        if (string.IsNullOrEmpty(entry.Name))
+                        {
+                            ImGui.TextDisabled(Loc.Text("(no name)"));
+                            Utils.SetTooltip(Loc.Text("Hidden objects genuinely have no name in the game data - this is expected, not a read failure."));
+                        }
+                        else
+                        {
+                            ImGui.Text(entry.Name);
+                        }
+
+                        ImGui.TableNextColumn();
+                        var seenFloor = HazardManager.GetMapLabel(entry.FirstSeenMapId);
+                        ImGui.Text(!string.IsNullOrEmpty(seenFloor)
+                            ? seenFloor
+                            : Loc.Format("Map {0}", entry.FirstSeenMapId));
+
+                        ImGui.TableNextColumn();
+                        var kind = manager.GetClassification(dataId);
+                        var kindIndex = (int)kind;
+                        ImGui.SetNextItemWidth(120f);
+                        if (ImGui.Combo($"##HazardKind{dataId}", ref kindIndex, kindNames, kindNames.Length))
+                            manager.SetClassification(dataId, (HazardKind)kindIndex);
+                    }
+
+                    ImGui.EndTable();
+                }
+
+                if (ImGui.Button(Loc.Text("Clear discovered list")))
+                    manager.ClearCatalogue();
+                Utils.SetTooltip(Loc.Text("Only clears the discovery list; your classifications and recorded positions are kept."));
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.CollapsingHeader(Loc.Text("Recorded positions"), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                var sightings = manager.GetSightings();
+                ImGui.Text(Loc.Format("{0} recorded position(s).", sightings.Count));
+                ImGui.SameLine();
+                if (ImGui.Button(Loc.Text("Clear positions")))
+                    manager.ClearSightings();
+
+                if (ImGui.BeginTable("HazardSightingsTable", 5,
+                        ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV |
+                        ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings,
+                        new Vector2(0, 200)))
+                {
+                    ImGui.TableSetupColumn(Loc.Text("Area"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Type"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Location"));
+                    ImGui.TableSetupColumn(Loc.Text("Seen"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableSetupColumn(Loc.Text("Actions"), ImGuiTableColumnFlags.WidthFixed);
+                    ImGui.TableHeadersRow();
+
+                    for (var i = sightings.Count - 1; i >= 0; i--)
+                    {
+                        var sighting = sightings[i];
+
+                        ImGui.TableNextColumn();
+                        var floor = HazardManager.GetMapLabel(sighting.MapId);
+                        ImGui.Text(!string.IsNullOrEmpty(floor) ? floor : Loc.Format("Map {0}", sighting.MapId));
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(Loc.Enum(manager.GetClassification(sighting.DataId)));
+
+                        ImGui.TableNextColumn();
+                        var mapRow = DalamudApi.DataManager.GetExcelSheet<Map>()!.GetRowOrDefault(sighting.MapId);
+                        if (mapRow != null)
+                        {
+                            var mapPos = MapUtil.WorldToMap(new Vector2(sighting.Position.X, sighting.Position.Z), mapRow.Value);
+                            ImGui.Text($"X: {mapPos.X:0.0}, Y: {mapPos.Y:0.0}");
+                            if (ImGui.IsItemClicked())
+                                Utils.SetFlagMarker(sighting.TerritoryId, (ushort)sighting.MapId, mapPos, openMap: true);
+                            Utils.SetTooltip(Loc.Text("Click to set a flag marker"));
+                        }
+                        else
+                        {
+                            ImGui.TextDisabled("?");
+                        }
+
+                        ImGui.TableNextColumn();
+                        ImGui.Text(sighting.TimesSeen.ToString());
+                        Utils.SetTooltip(Loc.Format("First seen {0}, last seen {1}",
+                            sighting.FirstSeen.ToString("yyyy-MM-dd HH:mm"),
+                            sighting.LastSeen.ToString("yyyy-MM-dd HH:mm")));
+
+                        ImGui.TableNextColumn();
+                        if (ImGui.Button($"{Loc.Text("Delete")}##HazardSighting{i}"))
+                            manager.DeleteSighting(sighting);
+                    }
+
+                    ImGui.EndTable();
+                }
+            }
+
+            ImGui.Separator();
+            ImGui.TextDisabled(Loc.Text("Data file:"));
+            ImGui.SameLine();
+            ImGui.TextWrapped(manager.GetDataPath());
         }
 
         static string CustomMessages = string.Join("\n", EurekaHelper.Config.CustomMessages);
@@ -1836,11 +2050,42 @@ namespace EurekaHelper.Windows
                 save = true;
 
                 if (enableSplatoon)
-                    EurekaHelper.Plugin.SplatoonManager = new();
+                {
+                    EurekaHelper.Plugin.SplatoonManager ??= new();
+                }
                 else
+                {
+                    // 原本只呼叫 Dispose() 沒有把欄位設回 null，所以關掉之後欄位仍然非 null：
+                    // 外掛卸載時 EurekaHelper.Dispose() 會對同一個實例再 Dispose 一次，等於
+                    // ECommonsMain.Dispose() 被多呼叫一次；重新開啟時舊實例也不會被回收。
                     EurekaHelper.Plugin.SplatoonManager?.Dispose();
+                    EurekaHelper.Plugin.SplatoonManager = null;
+                }
             }
             Utils.SetTooltip(Loc.Text("Requires the Splatoon plugin. Draws each NM's aural/visual/magic/blood aggro range as a circle/cone.\nEXPERIMENTAL: aggro range data is unverified/incomplete - see AggroRanges.json in the plugin config folder."));
+            ImGui.NextColumn();
+
+            save |= ImGui.Checkbox(Loc.Text("Mark aggro types whose range isn't measured yet"), ref EurekaHelper.Config.ShowUnmeasuredAggroMarkers);
+            Utils.SetTooltip(Loc.Text("Magic/Blood aggro types ship with radius 0, which Splatoon draws as nothing at all - on screen that looks exactly like \"this mob is harmless\". Turn this on to draw a small fixed-size ring instead, meaning \"this type is dangerous but its range is unknown\" rather than pretending the range is that size."));
+            ImGui.NextColumn();
+
+            var enableHazards = EurekaHelper.Config.EnableHazardMarkers;
+            if (ImGui.Checkbox(Loc.Text("Mark hidden traps / portals (Eureka & Baldesion Arsenal)"), ref enableHazards))
+            {
+                EurekaHelper.Config.EnableHazardMarkers = enableHazards;
+                save = true;
+
+                if (enableHazards)
+                {
+                    EurekaHelper.Plugin.HazardManager ??= new();
+                }
+                else
+                {
+                    EurekaHelper.Plugin.HazardManager?.Dispose();
+                    EurekaHelper.Plugin.HazardManager = null;
+                }
+            }
+            Utils.SetTooltip(Loc.Text("Requires the Splatoon plugin. Remembers where traps/portals were found and re-draws them on later visits as \"possible\" until you actually see them again.\nShips with NO built-in location data - you classify what you find yourself in the Hazards tab."));
             ImGui.NextColumn();
 
             ImGui.Columns(1);
@@ -2010,7 +2255,23 @@ namespace EurekaHelper.Windows
 
                         ImGui.TableNextColumn();
                         var seenEntries = splatoonManager.GetEntriesFor(name);
-                        ImGui.Text(seenEntries.Count > 0 ? string.Join(", ", seenEntries.Select(e => Loc.Enum(e.Type))) : Loc.Text("Visual (default)"));
+                        if (seenEntries.Count == 0)
+                        {
+                            ImGui.Text(Loc.Text("Visual (default)"));
+                        }
+                        else
+                        {
+                            ImGui.Text(string.Join(", ", seenEntries.Select(e => Loc.Enum(e.Type))));
+
+                            // 「範圍未知」要在列上看得見 —— 這幾型目前完全沒畫出來，光看畫面
+                            // 跟「安全」無法區分。
+                            if (seenEntries.Any(e => e.Radius <= 0f))
+                            {
+                                ImGui.SameLine();
+                                ImGui.TextDisabled(Loc.Text("(range ?)"));
+                                Utils.SetTooltip(Loc.Text("This aggro type has no measured radius yet, so nothing is drawn for it in-game by default. Lock the mob and measure it below, or turn on the \"unmeasured\" marker in Configuration."));
+                            }
+                        }
                     }
 
                     ImGui.EndTable();
@@ -2110,7 +2371,10 @@ namespace EurekaHelper.Windows
             for (var i = 0; i < existing.Count; i++)
             {
                 var entry = existing[i];
-                ImGui.Text($"{Loc.Enum(entry.Type)} - {Loc.Enum(entry.Shape)} - {entry.Radius}y");
+                // 半徑 0 代表「還沒量過」，不是「範圍是 0」—— 顯示成 ? 而不是 0y，避免看起來
+                // 像一個已知的數值。
+                var radiusText = entry.Radius > 0f ? $"{entry.Radius}y" : Loc.Text("? (not measured)");
+                ImGui.Text($"{Loc.Enum(entry.Type)} - {Loc.Enum(entry.Shape)} - {radiusText}");
                 ImGui.SameLine();
                 if (ImGui.SmallButton($"{Loc.Text("Delete")}##DebugEntry{i}"))
                     splatoonManager.RemoveEntry(bossName, i);
