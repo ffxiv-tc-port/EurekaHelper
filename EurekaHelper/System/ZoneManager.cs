@@ -176,7 +176,7 @@ namespace EurekaHelper.System
             // 0x70 bytes 的封包 payload 不會被搬進全域物件、進區旗標不會設、三個子呼叫全部不執行，
             // 結果是一進優雷卡就壞掉。回傳值本身無害（反組譯確認呼叫端丟棄 RAX），
             // 傷害純粹來自跳過副作用。
-            return InitZoneHook.Original(a1, a2, a3);
+            return InitZoneHook.OriginalDisposeSafe(a1, a2, a3);
         }
 
         // Leaving a zone no longer touches its tracker connection at all - you can zone in and
