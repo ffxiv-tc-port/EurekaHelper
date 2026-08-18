@@ -49,14 +49,24 @@
 
 	<ItemGroup>
 		<PackageReference Include="DalamudPackager" Version="13.0.0" />
-		<!-- 3.0.0.8 是 API12 時代的二進位套件:其 Svc 服務定位器仍宣告 [PluginService] IGameNetwork,
-		     而 API13 Dalamud 已移除 GameNetwork 外掛服務(介面標記 Obsolete、無 ResolveVia 註冊),
-		     導致 Create<Svc>() 在屬性注入階段擲出例外、Svc.Log 永遠是 null,ECommons 自己的錯誤
-		     處理路徑(PluginLog.Error)再引發 NullReferenceException 蓋掉真正的錯誤,外掛載入直接
-		     失敗。3.0.0.18-api13 是 API13 世代的對應版本(同 fleet 驗證過的 d258fccf 源碼世系,
-		     Svc 已拿掉 IGameNetwork 注入、改用 Dalamud.Bindings.ImGui),36 個宣告服務全數與
-		     Dalamud 13.0.0.6 的 ResolveVia 註冊表比對過。 -->
-		<PackageReference Include="ECommons" Version="3.0.0.18-api13" />
+		<!-- ⚠️ 舊結論保留,但要講清楚它管的是哪一顆:NuGet 上的 ECommons 3.0.0.8 是 API12
+		     世代的**二進位**套件,其 Svc 服務定位器仍宣告 [PluginService] IGameNetwork,而 API13
+		     Dalamud 已移除 GameNetwork 外掛服務(介面標記 Obsolete、無 ResolveVia 註冊),導致
+		     Create<Svc>() 在屬性注入階段擲出例外、Svc.Log 永遠是 null,ECommons 自己的錯誤處理
+		     路徑(PluginLog.Error)再引發 NullReferenceException 蓋掉真正的錯誤,外掛載入直接失敗。
+		     本 repo 因此改釘 NuGet 的 3.0.0.18-api13(API13 世代對應版本)—— 那條結論沒有被推翻,
+		     它只是在講 NuGet 二進位。
+		     現在改吃下面的子模組,不再受此限:子模組是**從原始碼**對艦隊釘住的 API13 Dalamud
+		     編出來的,BaseVersion 3.0.1.15 只是 fork 的版本號,與 NuGet 上同號的那顆無關。 -->
+		<!-- ECommons 走本 org 的 fork 子模組(BaseVersion 是 3.0.1.15,只換來源不換版本號)。
+		     公開 NuGet 的 ECommons 沒有我們補的判空/加固,其中 AddonMaster / ClickHelper 對
+		     AtkComponentBase.OwnerNode 零判空是 AVE 入口 —— AVE 在 .NET Core 是 corrupted-state
+		     exception,try/catch 與 HookSafety.ExecuteSafe 都攔不到,所以來源必須是 fork。
+		     🔴 版本號分不出來源:公開 NuGet 也有 3.0.1.15,判定只能看內容(加固版才有的
+		     GenericHelpers.IsComponentEnabled 等成員,公開那顆是 0)。
+		     驗法 tools/fleet/ecommons_hardening_check.py —— 兩軸:obj/project.assets.json 的
+		     ECommons 條目是 type=project ＋ 出貨目錄那顆 ECommons.dll 的標記位元組。 -->
+		<ProjectReference Include="..\ECommons\ECommons\ECommons.csproj" />
 		<Reference Include="FFXIVClientStructs">
 			<HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
 			<Private>false</Private>
