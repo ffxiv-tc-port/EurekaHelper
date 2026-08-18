@@ -340,7 +340,7 @@ namespace EurekaHelper.System
 
             var isNight = EorzeaTime.Now.IsNight;
 
-            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
+            var playerPos = DalamudApi.ObjectTable.LocalPlayer?.Position;
             var elements = new List<Element>();
 
             foreach (var monster in monsters)
@@ -518,7 +518,7 @@ namespace EurekaHelper.System
             if (!Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
                 return;
 
-            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
+            var playerPos = DalamudApi.ObjectTable.LocalPlayer?.Position;
 
             var elements = new List<Element>();
             foreach (var (bossName, ranges) in _aggroRanges)

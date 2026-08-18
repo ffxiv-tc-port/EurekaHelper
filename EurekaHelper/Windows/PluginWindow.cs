@@ -1700,7 +1700,7 @@ namespace EurekaHelper.Windows
                     ImGui.TableNextColumn();
                     if (ImGui.Button($"{Loc.Text("Reposition")}##{i}"))
                     {
-                        var player = DalamudApi.ClientState.LocalPlayer;
+                        var player = DalamudApi.ObjectTable.LocalPlayer;
                         if (player != null)
                             manager.RepositionHistoryRecord(record, player.Position);
                     }
@@ -2293,14 +2293,14 @@ namespace EurekaHelper.Windows
 
             ImGui.Text(Loc.Text("Data ID:"));
             ImGui.SameLine();
-            ImGui.Text(target.DataId.ToString());
+            ImGui.Text(target.BaseId.ToString());
 
             ImGui.Text(Loc.Text("Kind:"));
             ImGui.SameLine();
             ImGui.Text(target.ObjectKind.ToString());
 
-            var distance = DalamudApi.ClientState.LocalPlayer != null
-                ? Vector3.Distance(DalamudApi.ClientState.LocalPlayer.Position, target.Position).ToString("0.0")
+            var distance = DalamudApi.ObjectTable.LocalPlayer != null
+                ? Vector3.Distance(DalamudApi.ObjectTable.LocalPlayer.Position, target.Position).ToString("0.0")
                 : "?";
             ImGui.Text(Loc.Text("Distance:"));
             ImGui.SameLine();

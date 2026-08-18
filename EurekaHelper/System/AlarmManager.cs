@@ -37,7 +37,7 @@ namespace EurekaHelper.System
             if (DalamudApi.Condition[ConditionFlag.BetweenAreas] || DalamudApi.Condition[ConditionFlag.BetweenAreas51])
                 return;
 
-            if (DalamudApi.ClientState.LocalPlayer == null)
+            if (DalamudApi.ObjectTable.LocalPlayer == null)
                 return;
 
             SortActiveAlarms();

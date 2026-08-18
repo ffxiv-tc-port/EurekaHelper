@@ -144,7 +144,7 @@ namespace EurekaHelper.System
                 return;
             }
 
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null)
                 return;
 
@@ -222,7 +222,7 @@ namespace EurekaHelper.System
             if (!DirectionAngles.TryGetValue(direction, out var angleDeg))
                 return;
 
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null)
                 return;
 
@@ -251,7 +251,7 @@ namespace EurekaHelper.System
         // 的碼數區間準不準。找到後這一輪尋寶結束，順便清空目前的提示鏈跟畫面標記。
         private void OnTreasureFound()
         {
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null || _hints.Count == 0)
             {
                 Clear();
