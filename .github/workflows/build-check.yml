@@ -2,37 +2,21 @@ name: Build Check
 
 on:
   push:
+    branches:
+      - 'tc-7.20'
     tags-ignore:
       - 'v*'
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
-  gate:
-    runs-on: ubuntu-latest
-    outputs:
-      proceed: ${{ steps.check.outputs.proceed }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check if VersionPrefix changed from baseline
-        id: check
-        shell: bash
-        run: |
-          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' EurekaHelper/EurekaHelper.csproj)
-          echo "Current VersionPrefix: $PREFIX (baseline: 7.15.0)"
-          if [ "$PREFIX" = "7.15.0" ]; then
-            echo "proceed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "proceed=true" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    needs: gate
-    if: needs.gate.outputs.proceed == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Install .NET
         uses: actions/setup-dotnet@v5
         with:
@@ -42,7 +26,9 @@ jobs:
         run: |
           $dest = "$env:APPDATA\FFXIVSimpleLauncher\Dalamud\Injector"
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          Invoke-WebRequest -Uri https://github.com/ffxiv-tc-port/DalamudPluginsTC/releases/download/dalamud-pin-v12.0.2/dalamud-api12-net9.zip -OutFile dalamud-pinned.zip
+          Invoke-WebRequest -Uri https://github.com/ffxiv-tc-port/DalamudPluginsTC/releases/download/dalamud-pin-v13.0.0.16/dalamud-api13-net9.zip -OutFile dalamud-pinned.zip
           Expand-Archive -Force dalamud-pinned.zip $dest
+          # ECommons 子模組的 csproj 寫死 xivlauncher/Addon/Hooks/dev 當 DalamudLibPath——缺它=1500+ CS0246 全指向 ECommons
+          Expand-Archive -Force dalamud-pinned.zip "$env:AppData\xivlauncher\Addon\Hooks\dev\"
       - name: Build with dotnet
         run: dotnet build --configuration Release

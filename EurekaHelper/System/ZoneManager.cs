@@ -1,4 +1,7 @@
 ﻿using Dalamud.Game.Gui.Dtr;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
 using Dalamud.Logging;
 using Dalamud.Memory;
@@ -41,7 +44,10 @@ namespace EurekaHelper.System
             }
 
             DalamudApi.GameInteropProvider.InitializeFromAttributes(this);
-            //InitZoneHook?.Enable();
+            // 這行曾在 2026-07-24 的 API13 遷移合併裡被誤留成註解狀態（合併訊息寫的是保留可動版本，
+            // 實際 diff 卻採了上游的停用版），導致伺服器 ID 顯示與「進區自動開追蹤器」一起失效——
+            // 兩者的唯一觸發點都是這個 detour。
+            InitZoneHook?.Enable();
 
             var dtrBarTitle = "Eureka Helper";
             try
@@ -82,12 +88,49 @@ namespace EurekaHelper.System
                 CurrentZoneIndex = zoneIndex;
                 CurrentServerId = LastServerIdPerZone[zoneIndex];
 
-                if (CurrentServerId != 0 && EurekaHelper.Config.DisplayServerIdInServerInfo && _dtrBarEntry != null)
+                if (EurekaHelper.Config.DisplayServerIdInServerInfo)
                 {
-                    _dtrBarEntry.Text = Loc.Format("Server ID: {0}", CurrentServerId);
-                    _dtrBarEntry.Shown = true;
+                    if (CurrentServerId != 0)
+                        SetDtrServerId(CurrentServerId, Utils.GetZoneName(currentTerritory));
+                    else
+                        SetDtrOutsideEureka();   // 在優雷卡但還沒拿到 ID（例如剛重載外掛）
                 }
             }
+            else if (EurekaHelper.Config.DisplayServerIdInServerInfo)
+            {
+                // 在優雷卡之外載入外掛時也要把這一格初始化，否則它會停在預設的空白狀態。
+                SetDtrOutsideEureka();
+            }
+        }
+
+        /// <summary>
+        /// 資訊列只放圖示，伺服器 ID 移到滑鼠說明——那一格空間很擠，而且 ID 是偶爾才需要看的資訊。
+        /// ElementalLevel（元素等級）是優雷卡專屬圖示，一眼就認得出是哪個外掛。
+        /// </summary>
+        private void SetDtrServerId(ushort serverId, string zoneName)
+        {
+            if (_dtrBarEntry == null)
+                return;
+
+            _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
+            _dtrBarEntry.Tooltip = new SeString(new TextPayload(
+                $"{(string.IsNullOrEmpty(zoneName) ? "優雷卡" : zoneName)}\n伺服器 ID：{serverId}\n\n點擊：開啟追蹤器視窗\n\nEureka Helper"));
+            _dtrBarEntry.Shown = true;
+        }
+
+        /// <summary>
+        /// 不在優雷卡時也保留這一格：它同時是「點擊開啟追蹤器」的按鈕，
+        /// 在外面查 NM 時間一樣用得到，只是沒有伺服器 ID 可顯示。
+        /// </summary>
+        private void SetDtrOutsideEureka()
+        {
+            if (_dtrBarEntry == null)
+                return;
+
+            _dtrBarEntry.Text = new SeString(new IconPayload(BitmapFontIcon.ElementalLevel));
+            _dtrBarEntry.Tooltip = new SeString(new TextPayload(
+                "目前不在優雷卡（沒有伺服器 ID）\n\n點擊：開啟追蹤器視窗\n\nEureka Helper"));
+            _dtrBarEntry.Shown = true;
         }
 
         [Signature("E8 ?? ?? ?? ?? 45 33 C0 48 8D ?? ?? 8B ?? E8 ?? ?? ?? ?? 48 8D ??", DetourName = nameof(InitZoneDetour))]
@@ -107,23 +150,17 @@ namespace EurekaHelper.System
                         EurekaHelper.PrintMessage(Loc.Format("{0} Server ID: {1}", zoneName, serverId));
 
                     if (EurekaHelper.Config.DisplayServerIdInServerInfo)
-                    {
-                        if (_dtrBarEntry != null)
-                        {
-                            _dtrBarEntry.Text = Loc.Format("Server ID: {0}", serverId);
-                            _dtrBarEntry.Shown = true;
-                        }
-                    }
+                        SetDtrServerId(serverId, zoneName);
 
                     HandleZoneEntry(Utils.GetIndexOfZone(zoneId), serverId);
                 }
                 else
                 {
-                    if (_dtrBarEntry != null)
-                    {
-                        _dtrBarEntry.Text = "";
+                    // 離開優雷卡：不再隱藏整格，改成保留圖示但說明改為「沒有伺服器 ID」。
+                    if (EurekaHelper.Config.DisplayServerIdInServerInfo)
+                        SetDtrOutsideEureka();
+                    else if (_dtrBarEntry != null)
                         _dtrBarEntry.Shown = false;
-                    }
 
                     CurrentZoneIndex = 0;
                     CurrentServerId = 0;
@@ -134,8 +171,12 @@ namespace EurekaHelper.System
                 DalamudApi.Log.Error(Loc.Format("Something went wrong. Please contact the author.\n{0}", ex.Message));
             }
 
-            //return InitZoneHook.Original(a1, a2, a3);
-            return 1;
+            // ⚠️ 一定要把控制權交回遊戲。這裡曾經是 `return 1;`（hook 停用期間留下的殘骸）——
+            // 若在啟用 hook 的情況下留著它，detour 會「取代」而不是「攔截」遊戲的進區初始化：
+            // 0x70 bytes 的封包 payload 不會被搬進全域物件、進區旗標不會設、三個子呼叫全部不執行，
+            // 結果是一進優雷卡就壞掉。回傳值本身無害（反組譯確認呼叫端丟棄 RAX），
+            // 傷害純粹來自跳過副作用。
+            return InitZoneHook.OriginalDisposeSafe(a1, a2, a3);
         }
 
         // Leaving a zone no longer touches its tracker connection at all - you can zone in and
@@ -288,7 +329,7 @@ namespace EurekaHelper.System
 
         public void Dispose()
         {
-            //InitZoneHook?.Dispose();
+            InitZoneHook?.Dispose();
             _dtrBarEntry?.Remove();
         }
     }

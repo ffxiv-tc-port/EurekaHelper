@@ -340,7 +340,7 @@ namespace EurekaHelper.System
 
             var isNight = EorzeaTime.Now.IsNight;
 
-            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
+            var playerPos = DalamudApi.ObjectTable.LocalPlayer?.Position;
             var elements = new List<Element>();
 
             foreach (var monster in monsters)
@@ -463,6 +463,10 @@ namespace EurekaHelper.System
         // under the same layer name rather than stacking duplicates.
         private const float MaxDrawDistance = 60f;
 
+        // 「這一型有威脅但範圍還沒量出來」的標記圈大小。刻意取一個明顯偏小、不可能被誤認成
+        // 真實仇恨範圍的值 —— 它表達的是「未知」，不是一個估計值。
+        private const float UnmeasuredMarkerRadius = 2f;
+
         // Skip drawing entirely once the player is farther than MaxDrawDistance from the
         // aggro-range's own reference actor - there's no point rendering ranges around monsters
         // nowhere near the player, and it keeps distant zone-wide clutter off screen.
@@ -514,7 +518,7 @@ namespace EurekaHelper.System
             if (!Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
                 return;
 
-            var playerPos = DalamudApi.ClientState.LocalPlayer?.Position;
+            var playerPos = DalamudApi.ObjectTable.LocalPlayer?.Position;
 
             var elements = new List<Element>();
             foreach (var (bossName, ranges) in _aggroRanges)
@@ -522,7 +526,29 @@ namespace EurekaHelper.System
                 foreach (var range in ranges)
                 {
                     if (range.Radius <= 0f)
-                        continue; // radius not measured yet - see AggroRanges.json / Debug tab
+                    {
+                        // 🔴 半徑 0 在 Splatoon 上等於「什麼都不畫」，而畫面上「沒有圈」跟
+                        // 「這隻沒有威脅」長得一模一樣 —— Magic/Blood 兩型出廠就是 0（沒有
+                        // 公開來源給得出基準距離），所以預設狀態下這兩型是**靜默消失**的。
+                        // 把未知呈現成 0 會直接誤導玩家，所以提供一個「已知類型、範圍未知」
+                        // 的小標記圈：固定 UnmeasuredMarkerRadius 大小，不假裝那就是真的仇恨
+                        // 範圍。預設關閉（沿用原本不畫的行為）。
+                        if (!EurekaHelper.Config.ShowUnmeasuredAggroMarkers)
+                            continue;
+
+                        var marker = new Element(ElementType.CircleRelativeToActorPosition)
+                        {
+                            radius = UnmeasuredMarkerRadius,
+                            color = range.Color,
+                            Filled = false,
+                            thicc = 1.5f,
+                            onlyTargetable = true,
+                        };
+                        ApplyActorMatch(marker, bossName, range);
+                        ApplyDistanceLimit(marker, playerPos);
+                        elements.Add(marker);
+                        continue;
+                    }
 
                     if (range.Shape == AggroShape.Cone)
                     {

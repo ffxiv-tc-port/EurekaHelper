@@ -117,6 +117,18 @@ namespace EurekaHelper
         // unverified/empty until someone fills it in - see EurekaHelper/System/SplatoonManager.cs.
         public bool EnableSplatoonAggroRanges = false;
 
+        // 仇恨範圍半徑還沒量出來的（Magic/Blood 兩型出廠是 0）要不要在怪腳下畫一個小標記圈。
+        // 半徑 0 在 Splatoon 上等於「完全不畫」，畫面上跟「這隻沒有威脅」長得一模一樣 —— 把
+        // 未知畫成 0 會直接誤導玩家。開起來會改畫一個固定大小的小圈，意思是「這隻是魔法／
+        // 血量偵測型，但範圍未知」，而不是假裝範圍就是那麼大。
+        // 預設關閉：沿用現行行為（不畫），要不要改預設由使用者裁決。
+        public bool ShowUnmeasuredAggroMarkers = false;
+
+        // 在優雷卡／兵武塔標示隱藏陷阱與傳送門的「可能有／已確認」兩態（見
+        // System/HazardManager.cs）。預設關閉：需要玩家自己先分類 DataId 才會有東西畫，
+        // 而且需要裝 Splatoon。
+        public bool EnableHazardMarkers = false;
+
         /*
          * Relic Window Configurations
          */

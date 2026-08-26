@@ -86,6 +86,13 @@ namespace EurekaHelper.System
         public Vector2? EstimatedPosition { get; private set; }
         public float EstimatedRadius { get; private set; }
 
+        // 這次推算到底有多不準，給 UI 直接顯示在列上用。
+        // null = **上不封頂**：最新一次提示是「很遠」，而「很遠」的碼數區間沒有上限（見
+        // DistanceTiers 的第 3 點註解），所以真正的不確定範圍是未知的。這種時候 UI 必須顯示
+        // 「?」而不是拿 FarTierRenderCap 那個「只是為了不要畫出無限長線段」的數字充數 ——
+        // 那會讓一個純粹的繪圖上限看起來像一個測量結果。
+        public float? EstimateUncertainty { get; private set; }
+
         // True when EstimatedPosition came from a past TreasureFoundRecord (strong fan-match or
         // proximity snap) rather than the raw bearing triangulation - lets the UI flag that the
         // suggested spot is a confirmed historical dig site, not just a geometric guess.
@@ -137,7 +144,7 @@ namespace EurekaHelper.System
                 return;
             }
 
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null)
                 return;
 
@@ -215,7 +222,7 @@ namespace EurekaHelper.System
             if (!DirectionAngles.TryGetValue(direction, out var angleDeg))
                 return;
 
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null)
                 return;
 
@@ -244,7 +251,7 @@ namespace EurekaHelper.System
         // 的碼數區間準不準。找到後這一輪尋寶結束，順便清空目前的提示鏈跟畫面標記。
         private void OnTreasureFound()
         {
-            var player = DalamudApi.ClientState.LocalPlayer;
+            var player = DalamudApi.ObjectTable.LocalPlayer;
             if (player == null || _hints.Count == 0)
             {
                 Clear();
@@ -341,6 +348,11 @@ namespace EurekaHelper.System
             EstimatedPosition = latestOrigin2D + latestDir * latest.MinDistance;
             EstimatedRadius = latestRenderMax - latest.MinDistance;
 
+            // float.MaxValue 代表這個距離等級沒有上限（目前只有「很遠」）。
+            EstimateUncertainty = float.IsPositiveInfinity(latest.MaxDistance) || latest.MaxDistance >= float.MaxValue
+                ? null
+                : latest.MaxDistance - latest.MinDistance;
+
             // A past TreasureFoundRecord (same territory) that falls within EVERY collected
             // hint's fan (direction ± half-angle, distance within that hint's tier range) is a
             // much stronger signal than the raw bearing math - it's an actual confirmed spot that
@@ -367,6 +379,8 @@ namespace EurekaHelper.System
             {
                 EstimatedPosition = new Vector2(matchedRecord.FoundPosition.X, matchedRecord.FoundPosition.Z);
                 EstimatedRadius = 1f;
+                // 歷史挖到點是實測座標，不確定性接近 0（不是「未知」）。
+                EstimateUncertainty = 1f;
                 IsUsingHistoricalPosition = true;
             }
             else
@@ -402,8 +416,21 @@ namespace EurekaHelper.System
             // isn't documented anywhere and would need live in-game trial and error to get right -
             // two lines from verified XYZ points carries no such risk.
             var elements = new List<Element>(_hints.Count * 2);
-            foreach (var hint in _hints)
+            for (var hintIndex = 0; hintIndex < _hints.Count; hintIndex++)
             {
+                var hint = _hints[hintIndex];
+
+                // 每按一次胡蘿蔔就多疊一個扇形，而原本每個扇形都用同一個顏色同一個線粗，疊到
+                // 三四次之後畫面上一片同色線段，看不出「哪一條是最新的」——最新那次提示才是
+                // 現在該走的方向。改成**同一個色相只調透明度／線粗**（不新增顏色，避免疊色
+                // 造成視覺困擾）：最新一次最亮最粗，越舊越淡越細，但仍保留得看得見，因為整串
+                // 的收斂過程本身就是有用的資訊。
+                var isLatest = hintIndex == _hints.Count - 1;
+                var age = _hints.Count - 1 - hintIndex;
+                var alpha = isLatest ? 0xC0u : (uint)Math.Max(0x28, 0x80 - (age * 0x18));
+                var color = (alpha << 24) | 0x0000FFu; // 0xAABBGGRR - 紅色，只有 alpha 在變
+                var thickness = isLatest ? 4f : 2f;
+
                 var origin2D = new Vector2(hint.Origin.X, hint.Origin.Z);
                 var leftDir = DirectionToVector(hint.AngleDegrees - FanHalfAngleDegrees);
                 var rightDir = DirectionToVector(hint.AngleDegrees + FanHalfAngleDegrees);
@@ -419,8 +446,8 @@ namespace EurekaHelper.System
                     offX = leftEdge.X,
                     offY = leftEdge.Y,
                     offZ = hint.Origin.Y,
-                    color = 0x800000FF,
-                    thicc = 3f,
+                    color = color,
+                    thicc = thickness,
                     Enabled = true,
                 });
                 elements.Add(new Element(ElementType.LineBetweenTwoFixedCoordinates)
@@ -431,8 +458,8 @@ namespace EurekaHelper.System
                     offX = rightEdge.X,
                     offY = rightEdge.Y,
                     offZ = hint.Origin.Y,
-                    color = 0x800000FF,
-                    thicc = 3f,
+                    color = color,
+                    thicc = thickness,
                     Enabled = true,
                 });
             }
@@ -475,6 +502,7 @@ namespace EurekaHelper.System
             _hints.Clear();
             EstimatedPosition = null;
             EstimatedRadius = 0f;
+            EstimateUncertainty = null;
             IsUsingHistoricalPosition = false;
             _nearbyHistoricalRecord = null;
             Splatoon.RemoveDynamicElements(LayerName);
