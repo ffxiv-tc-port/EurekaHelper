@@ -1,17 +1,17 @@
 name: Eureka Helper
 author: Snowy, KangasZ
-punchline: Eureka Tracker in a plugin with many other features.
+punchline: 優雷卡追蹤器與多項實用功能整合插件。
 description: |-
-  A tool to assist you on your Eureka adventures, now updated for Dawntrail! Type /eurekahelper to get started.
-  
-  Features include:
-  - In-Game Tracker GUI
-  - Instance Tracker
-  - Elementals Tracker
-  - Relic Helper
-  - Alarms
-  - Money NM weather timings
-  - More to come
+  協助你進行優雷卡冒險的工具，已更新至《漂泊眾島》版本！輸入 /eurekahelper 開始使用。
+
+  功能包含：
+  - 遊戲內追蹤器 GUI
+  - 副本追蹤器
+  - 聖靈追蹤器
+  - 魂武助手
+  - 鬧鐘
+  - 賺錢 NM 天氣時間提醒
+  - 更多功能陸續推出
 tags:
   - Eureka
   - Tracker
@@ -25,4 +25,5 @@ tags:
   - Alarms
 category_tags:
   - Utility
-repo_url: https://github.com/KangasZ/EurekaHelper
+repo_url: https://github.com/ffxiv-tc-port/EurekaHelper
+icon_url: https://raw.githubusercontent.com/ffxiv-tc-port/EurekaHelper/tc-7.15/EurekaHelper/Resources/icon.png

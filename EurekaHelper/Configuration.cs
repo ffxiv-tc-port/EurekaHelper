@@ -109,6 +109,50 @@ namespace EurekaHelper
         public PayloadOptions PayloadOptions { get; set; } = PayloadOptions.ShoutToChat;
 
         /*
+         * Splatoon Configurations
+         */
+
+        // Draws NM aggro-detection ranges via Splatoon IPC. Off by default: requires Splatoon
+        // installed, and the aggro range data (System/SplatoonManager.cs AggroRanges.json) is
+        // unverified/empty until someone fills it in - see EurekaHelper/System/SplatoonManager.cs.
+        public bool EnableSplatoonAggroRanges = false;
+
+        /*
+         * Relic Window Configurations
+         */
+        public bool AutoOpenRelicWindowInEureka = false;
+
+        /*
+         * Per-zone tracker memory: the last tracker (code/password) connected in each Eureka
+         * zone, keyed by zone index (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos - see
+         * Utils.GetIndexOfZone), plus the server ID it was joined on. Persisted so a plugin
+         * reload/restart can silently rejoin the same tracker on returning to a zone whose
+         * server ID still matches, instead of leaving that zone's tab empty. See
+         * System/ZoneManager.cs for the reconnect logic.
+         */
+        public Dictionary<int, TrackerMemoryEntry> TrackerMemory = new();
+
+        /*
+         * Last known server ID seen per zone (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos), persisted so
+         * a plugin reload while already standing inside an instance doesn't lose it - the game only
+         * reports the server ID on an actual zone-entry event (see ZoneManager.InitZoneDetour),
+         * which won't refire just because the plugin restarted mid-instance. ZoneManager seeds its
+         * in-memory copy from this on construction.
+         */
+        public Dictionary<int, ushort> LastServerIdPerZone = new();
+
+        // 每次尋寶推算出新位置、更新地圖旗標時，順便呼叫 vnavmesh 的 "/vnav moveflag" 自動走向
+        // 旗標。需要玩家自己裝 vnavmesh 外掛，沒裝的話這個指令送出去會被遊戲當成無效指令、不會
+        // 有任何效果。預設關閉 - 自動移動角色的行為有其風險（可能把你帶去危險的地方），要玩家
+        // 自己選擇開啟。
+        public bool TreasureHuntAutoMoveFlag = false;
+
+        // 每次挖到寶藏時，把找到當下的座標＋這一輪的完整提示鏈存一筆進來（見
+        // TreasureHuntManager.OnTreasureFound），跨 session 持久化，供之後回頭校正距離等級的
+        // 碼數區間。
+        public List<TreasureFoundRecord> TreasureHuntHistory = new();
+
+        /*
          * Server ID Configurations
          */
         public bool DisplayServerId = false;
@@ -142,5 +186,13 @@ namespace EurekaHelper
         public List<EurekaAlarm> Alarms { get; set; } = new();
 
         public void Save() => DalamudApi.PluginInterface.SavePluginConfig(this);
+    }
+
+    [Serializable]
+    public class TrackerMemoryEntry
+    {
+        public string Code = string.Empty;
+        public string Password = string.Empty;
+        public ushort ServerId;
     }
 }

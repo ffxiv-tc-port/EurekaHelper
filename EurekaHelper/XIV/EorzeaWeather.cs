@@ -26,18 +26,18 @@ namespace EurekaHelper.XIV
         {
             return weather switch
             {
-                EurekaWeather.Gales => "Gales",
-                EurekaWeather.Showers => "Showers",
-                EurekaWeather.FairSkies => "Fair Skies",
-                EurekaWeather.Snow => "Snow",
-                EurekaWeather.HeatWaves => "Heat Waves",
-                EurekaWeather.Thunder => "Thunder",
-                EurekaWeather.Blizzards => "Blizzards",
-                EurekaWeather.Fog => "Fog",
-                EurekaWeather.UmbralWind => "Umbral Wind",
-                EurekaWeather.Thunderstorms => "Thunderstorms",
-                EurekaWeather.Gloom => "Gloom",
-                _ => "None",
+                EurekaWeather.Gales => Loc.Text("Gales"),
+                EurekaWeather.Showers => Loc.Text("Showers"),
+                EurekaWeather.FairSkies => Loc.Text("Fair Skies"),
+                EurekaWeather.Snow => Loc.Text("Snow"),
+                EurekaWeather.HeatWaves => Loc.Text("Heat Waves"),
+                EurekaWeather.Thunder => Loc.Text("Thunder"),
+                EurekaWeather.Blizzards => Loc.Text("Blizzards"),
+                EurekaWeather.Fog => Loc.Text("Fog"),
+                EurekaWeather.UmbralWind => Loc.Text("Umbral Wind"),
+                EurekaWeather.Thunderstorms => Loc.Text("Thunderstorms"),
+                EurekaWeather.Gloom => Loc.Text("Gloom"),
+                _ => Loc.Text("None"),
             };
         }
     }

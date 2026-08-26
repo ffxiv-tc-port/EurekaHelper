@@ -140,14 +140,14 @@ namespace EurekaHelper
 
             foreach (var fate in fates)
             {
-                var fateSheetData = DalamudApi.DataManager.GetExcelSheet<Fate>()!.GetRow(fate.FateId);
-                if (fateSheetData.Location == 0)
+                var fateSheetData = DalamudApi.DataManager.GetExcelSheet<Fate>()!.GetRowOrDefault(fate.FateId);
+                if (fateSheetData == null || fateSheetData.Value.Location == 0)
                     continue;
 
-                if (!eventData.Exists(x => x.InstanceId == fateSheetData.Location))
+                if (!eventData.Exists(x => x.InstanceId == fateSheetData.Value.Location))
                     continue;
 
-                var match = eventData.Find(x => x.InstanceId == fateSheetData.Location);
+                var match = eventData.Find(x => x.InstanceId == fateSheetData.Value.Location);
 
                 var vector = MapUtil.WorldToMap(new Vector2(match.Transform.Translation.X, match.Transform.Translation.Z), territoryType.Value.Map.Value);
 
@@ -181,7 +181,7 @@ namespace EurekaHelper
         {
             var itemLink = SeString.CreateItemLink(itemId, isHq, displayNameOverride);
             return new SeStringBuilder()
-                .AddText("Linked Item: ")
+                .AddText(Loc.Text("Linked Item: "))
                 .Append(itemLink)
                 .Add(RawPayload.LinkTerminator)
                 .BuiltString;
@@ -189,13 +189,14 @@ namespace EurekaHelper
 
         public static SeStringBuilder ArisuStringbuilder(string nextNmString, string nextWeatherString, DateTime time1, DateTime time2)
         {
+            Loc.TryEurekaName(nextNmString, out var nmName);
             var sb = new SeStringBuilder();
             var nextTimeOfWeather = time1;
             if (time1 < DateTime.Now)
             {
                 var currTimeDiff = time1 + TimeSpan.FromMilliseconds(EorzeaTime.EIGHT_HOURS) - DateTime.Now;
                 sb.AddUiForeground(523)
-                    .AddText($"{nextNmString} weather is up now! It ends in ")
+                    .AddText(Loc.Format("{0} weather is up now! It ends in ", nmName))
                     .AddUiForegroundOff()
                     .AddUiForeground(508)
                     .AddText($"{(int)Math.Round(currTimeDiff.TotalMinutes)}m. ");
@@ -204,7 +205,7 @@ namespace EurekaHelper
 
             var nextTimeDiff = nextTimeOfWeather - DateTime.Now;
             sb.AddUiForeground(523)
-                .AddText($"Next {nextNmString} weather ({nextWeatherString}) in ")
+                .AddText(Loc.Format("Next {0} weather ({1}) in ", nmName, Loc.Text(nextWeatherString)))
                 .AddUiForegroundOff()
                 .AddUiForeground(508)
                 .AddText($"{(int)Math.Round(nextTimeDiff.TotalMinutes)}m ")
@@ -315,7 +316,7 @@ namespace EurekaHelper
         {
             if (DalamudApi.ClientState.TerritoryType != territoryId)
             {
-                EurekaHelper.PrintMessage("You must be in the same zone to place a marker.");
+                EurekaHelper.PrintMessage(Loc.Text("You must be in the same zone to place a marker."));
                 return;
             }
 
@@ -366,9 +367,12 @@ namespace EurekaHelper
             int index = random.Next(EurekaHelper.Config.CustomMessages.Count);
             string randomMessage = EurekaHelper.Config.CustomMessages[index];
 
+            Loc.TryEurekaName(fate.BossName, out var bossName);
+            Loc.TryEurekaName(fate.BossShortName, out var bossShortName);
+
             return randomMessage
-                .Replace("%bossName%", fate.BossName)
-                .Replace("%bossShortName%", fate.BossShortName)
+                .Replace("%bossName%", bossName)
+                .Replace("%bossShortName%", bossShortName)
                 .Replace("%fateName%", fate.FateName)
                 .Replace("%flag%", "<flag>");
         }

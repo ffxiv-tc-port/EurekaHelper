@@ -101,6 +101,9 @@ namespace EurekaHelper.XIV.Zones
 
         public (EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
 
+        // Cheap static passthrough - see EurekaHydatos.GetCurrentWeatherInfoStatic's doc comment.
+        public static (EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfoStatic() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
+
         public static List<DateTime> GetWeatherForecast(EurekaWeather targetWeather, int count) =>
             EorzeaWeather.GetCountWeatherForecasts(targetWeather, count, Weathers);
 

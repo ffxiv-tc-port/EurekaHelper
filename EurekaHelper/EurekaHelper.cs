@@ -30,6 +30,9 @@ namespace EurekaHelper;
         internal readonly ElementalManager ElementalManager;
         internal readonly InventoryManager InventoryManager;
         internal readonly AlarmManager AlarmManager;
+        internal readonly TreasureHuntManager TreasureHuntManager;
+        internal SplatoonManager SplatoonManager;
+        internal CookieBoxTracker CookieBoxTracker;
 
         public EurekaHelper(IDalamudPluginInterface pluginInterface)
         {
@@ -46,10 +49,23 @@ namespace EurekaHelper;
             ElementalManager = new();
             InventoryManager = new();
             AlarmManager = new();
+            TreasureHuntManager = new();
+
+            if (Config.EnableSplatoonAggroRanges)
+                SplatoonManager = new();
 
             PluginWindow = new(this);
             RelicWindow = new(this);
             AlarmWindow = new(this);
+
+            // Needs PluginWindow to exist first (it reads/writes each zone's live tracker via
+            // PluginWindow.GetConnection).
+            CookieBoxTracker = new();
+
+            // Retry the tracker rejoin ZoneManager's constructor couldn't do yet (PluginWindow
+            // didn't exist at that point) - covers reloading the plugin while already standing
+            // inside an Eureka instance. See ZoneManager.TryRejoinCurrentZoneTracker.
+            ZoneManager.TryRejoinCurrentZoneTracker();
 
             WindowSystem = new("Eureka Helper");
             WindowSystem.AddWindow(PluginWindow);
@@ -129,7 +145,7 @@ namespace EurekaHelper;
             var cassieWeatherTimes = EurekaPagos.GetWeatherForecast(EurekaWeather.Blizzards, 2);
             var skollWeatherTimes = EurekaPyros.GetWeatherForecast(EurekaWeather.Blizzards, 2);
 
-            PrintMessage("Weather timers for important NMs:");
+            PrintMessage(Loc.Text("Weather timers for important NMs:"));
 
             #region Crab/KA
             var crabTime1 = crabWeatherTimes[0];
@@ -163,7 +179,7 @@ namespace EurekaHelper;
             var connectionManager = await EurekaConnectionManager.Connect();
             if (CurrentDatacenterId == 0)
             {
-                PrintMessage("This datacenter is not supported currently. Please submit an issue if you think this is incorrect.");
+                PrintMessage(Loc.Text("This datacenter is not supported currently. Please submit an issue if you think this is incorrect."));
                 await connectionManager.Close();
                 return;
             }
@@ -177,16 +193,16 @@ namespace EurekaHelper;
             var filteredList = trackerList.Where(x => (int)x["relationships"]["zone"]["data"]["id"] == Utils.GetIndexOfZone(DalamudApi.ClientState.TerritoryType));
             if (!filteredList.Any())
             {
-                PrintMessage("Unable to find any public trackers.");
+                PrintMessage(Loc.Text("Unable to find any public trackers."));
                 return;
             }
 
             var sb = new SeStringBuilder()
-                .AddText("Found")
+                .AddText(Loc.Text("Found"))
                 .AddUiForeground(58)
                 .AddText($" {filteredList.Count()} ")
                 .AddUiForegroundOff()
-                .AddText("public trackers:");
+                .AddText(Loc.Text("public trackers:"));
             PrintMessage(sb.BuiltString);
 
             foreach (var tracker in filteredList)
@@ -248,7 +264,10 @@ namespace EurekaHelper;
             ElementalManager.Dispose();
             InventoryManager.Dispose();
             AlarmManager.Dispose();
-            PluginWindow.GetConnection().Dispose();
+            TreasureHuntManager.Dispose();
+            SplatoonManager?.Dispose();
+            CookieBoxTracker?.Dispose();
+            PluginWindow.DisposeAllConnections();
             DalamudApi.PluginInterface.RemoveChatLinkHandler();
             DalamudApi.ClientState.Login -= OnLogin;
         }
