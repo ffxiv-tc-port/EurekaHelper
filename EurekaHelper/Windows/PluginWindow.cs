@@ -1,15 +1,13 @@
 ﻿using Dalamud.Interface.Windowing;
 using System;
-using ImGuiNET;
 using System.Numerics;
 using Dalamud.Interface;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
-using Dalamud.Logging;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Components;
-using Dalamud.Game.Text;
 using Dalamud.Interface.Colors;
 using Dalamud.Utility;
 using EurekaHelper.System;
@@ -169,22 +167,6 @@ namespace EurekaHelper.Windows
         // the user every frame if they manually click a different tab afterwards.
         private int _lastAutoSwitchedZoneIndex;
 
-        // ImGuiNET only exposes BeginTabItem(label, flags) bundled with a mandatory "ref bool
-        // p_open" parameter, which always draws a closeable "x" on the tab regardless of the
-        // bool's value - there's no managed overload for "flags but no close button". The native
-        // igBeginTabItem accepts a null p_open pointer for exactly that case, so call it directly
-        // to get ImGuiTabItemFlags (e.g. SetSelected for auto-switching zones) without an
-        // accidentally-clickable close button on each zone tab.
-        private static unsafe bool BeginTabItemNoClose(string label, ImGuiTabItemFlags flags)
-        {
-            var byteCount = Encoding.UTF8.GetByteCount(label);
-            Span<byte> buffer = stackalloc byte[byteCount + 1];
-            Encoding.UTF8.GetBytes(label, buffer);
-            buffer[byteCount] = 0;
-            fixed (byte* ptr = buffer)
-                return ImGuiNative.igBeginTabItem(ptr, null, flags) != 0;
-        }
-
         public void DrawTrackerTab()
         {
             var autoSwitchToZoneIndex = -1;
@@ -200,7 +182,7 @@ namespace EurekaHelper.Windows
                 {
                     var zoneName = Loc.Text(Utils.GetZoneName(Constants.EurekaZones[zoneIndex - 1]));
                     var flags = zoneIndex == autoSwitchToZoneIndex ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-                    if (BeginTabItemNoClose(zoneName, flags))
+                    if (ImGui.BeginTabItem(zoneName, flags))
                     {
                         SelectedTrackerZoneIndex = zoneIndex;
                         DrawTrackerZoneTab();
@@ -258,7 +240,6 @@ namespace EurekaHelper.Windows
                     {
                         if (ImGuiComponents.IconButton(FontAwesomeIcon.LockOpen))
                         {
-
                             if (Plugin.CurrentDatacenterId == 0)
                                 EurekaHelper.PrintMessage(
                                     Loc.Text("This datacenter is not supported currently. Please submit an issue if you think this is incorrect."));
@@ -1712,7 +1693,7 @@ namespace EurekaHelper.Windows
 
         public static void DrawSettingsTab()
         {
-            ImGui.Columns(2, null, true);
+            ImGui.Columns(2, "settings", true);
 
             var save = false;
             var useChatSoundEffect = EurekaHelper.Config.GlobalUseChatSoundEffect;
@@ -1910,6 +1891,10 @@ namespace EurekaHelper.Windows
         {
             var save = false;
 
+            ImGui.TextColored(RedColorText, "** DISCLAIMER, READ THIS **");
+            ImGui.TextWrapped(
+                "This feature is currently sunset. I do not have the time to investigate this feature again and in the interest of keeping the plugin operation, I will disable this for the foreseeable future. There are other plugins that implement this feature, please use those instead.");
+            ImGui.Separator();
             ImGui.Columns(2);
 
             save |= ImGui.Checkbox(Loc.Text("Display Server Id in chat"), ref EurekaHelper.Config.DisplayServerId);
@@ -2151,9 +2136,9 @@ namespace EurekaHelper.Windows
                 connection?.Dispose();
         }
 
-        private unsafe int IntegerCheck(ImGuiInputTextCallbackData* data)
+        private int IntegerCheck(ImGuiInputTextCallbackDataPtr data)
         {
-            char c = Convert.ToChar(data->EventChar);
+            var c = Convert.ToChar(data.EventChar);
 
             if (c >= '0' && c <= '9')
                 return 0;

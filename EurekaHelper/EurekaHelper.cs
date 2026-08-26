@@ -268,7 +268,7 @@ namespace EurekaHelper;
             SplatoonManager?.Dispose();
             CookieBoxTracker?.Dispose();
             PluginWindow.DisposeAllConnections();
-            DalamudApi.PluginInterface.RemoveChatLinkHandler();
+            DalamudApi.ChatGui.RemoveChatLinkHandler();
             DalamudApi.ClientState.Login -= OnLogin;
         }
     }
