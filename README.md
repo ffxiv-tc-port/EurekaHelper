@@ -1,99 +1,39 @@
-This is a redistribution of the existing Eureka Helper Plugin. This is the same plugin, however maintained by me instead of Snowy.
+# EurekaHelper
 
-In the short term I will be maintaining the plugin with feature work being secondary to maintenance. This may change at any time, however once Snowy returns I intend to return all maintainer status to them.
+優雷卡專用的追蹤器與便利工具插件，介面仿照 ffxiv-eureka.com 社群追蹤器網站。
 
-<section id="header" align="center">
-  <h1>
-    <img href="https://https://github.com/KangasZ/EurekaHelper" src="/EurekaHelper/Resources/icon.png" width="150px" />
-    <br>
-    <a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.herokuapp.com?font=Patrick+Hand&size=50&duration=3000&pause=2000&center=true&vCenter=true&width=435&lines=Eureka+Helper" alt="Eureka Helper" /></a>
-  </h1>
-  <div align="center">
-    <h5>A FFXIV Dalamud plugin</h5>
-    <a href="https://github.com/KangasZ/EurekaHelper/tags"><img src="https://img.shields.io/github/v/tag/snorux/EurekaHelper?label=version&style=for-the-badge" /></a>
-    <a href="https://github.com/KangasZ/EurekaHelper"><img src="https://img.shields.io/endpoint?style=for-the-badge&url=https://qzysathwfhebdai6xgauhz4q7m0mzmrf.lambda-url.us-east-1.on.aws/EurekaHelper" /></a>
-    <a href="https://github.com/goatcorp/Dalamud"><img src="https://img.shields.io/badge/ffxiv-dalamud-red.svg?&style=for-the-badge" /></a>
-  </div>
-</section>
+## 指令
 
-<hr>
+| 指令 | 說明 |
+|---|---|
+| `/eurekahelper`、`/ehelper`、`/eh` | 開啟／關閉主視窗 |
+| `/arisu`、`/miniarisu`、`/mercy` | 顯示 Crab、Cassie、Skoll 三隻 NM 的下次天氣時間 |
+| `/etrackers` | 尋找目前所在資料中心、同副本的公開追蹤器 |
+| `/erelic` | 開啟／關閉優雷卡神器進度視窗 |
+| `/ealarms` | 開啟／關閉鬧鐘視窗 |
 
-<details open>
-  <summary>
-    <span>Table of Contents</span>
-  </summary>
-  <ol>
-    <li><a href="#description">Description</a></li>
-    <li><a href="#installation">Installation</a></li>
-    <li><a href="#commands">Commands</a></li>
-    <li><a href="#features">Features</a></li>
-    <ol>
-      <li><a href="#ffxiv-eureka-tracker-gui">FFXIV Eureka Tracker GUI</a></li>
-      <li><a href="#elementals-manager">Elementals Manager</a></li>
-      <li><a href="#instance-tracker">Instance Tracker</a></li>
-      <li><a href="#relic-helper">Relic Helper</a></li>
-      <li><a href="#alarms-manager">Alarms Manager</a></li>
-      <li><a href="#cutomizable-configurations">Cutomizable Configurations</a></li>
-    </ol>
-    <li><a href="#known-issues">Known Issues</a></li>
-  </ol>
-</details>
+## 主視窗分頁
 
-<hr>
-## Description
-EurekaHelper is a plugin for [XIVLauncher](https://goatcorp.github.io/). It's a handy plugin that enhances your Eureka gameplay with an In-Game Eureka Tracker and convenient quality-of-life features.
+- **追蹤器**：加入或建立社群追蹤器，顯示各區域 NM 出現狀態，介面仿照官方網站
+- **兵武塔 BA**：巴德西恩軍械庫（Baldesion Arsenal）專用簡化面板，追蹤歐尼／特里斯提提亞戰況與塔內狀態
+- **聖靈**：記錄已知聖靈（Elemental）在各區域的出現位置
+- **變異怪物**：追蹤帕戈斯／派羅斯／海達特斯的環境適應變異 NM 天氣視窗
+- **尋寶**：收集使用幸運胡蘿蔔（幸福兔事件後取得）出現的方位提示，推算寶藏位置，並透過 Splatoon 畫在畫面上（選用 vnavmesh 自動移動到標記）
+- **隱藏危險**（需另外啟用）：標記優雷卡／兵武塔內的隱藏陷阱與傳送點，分「曾在此發現」與「目前可見」兩種狀態，不含內建資料，需自行分類累積
+- **設定**：主視窗與各項功能的細部設定
+- **副本**：顯示目前優雷卡副本的伺服器 ID（此功能作者已停止維護，僅供參考，準確性不保證）
+- **關於**：版本、指令、致謝等資訊
 
-EurekaHelper allows you to effortlessly join or create an [Eureka Tracker](https://ffxiv-eureka.com/) instance within the game. It also provides a user-friendly graphical user interface (GUI) that closely resembles the website's interface.
+## 已知問題
 
-To access the main window, simply type any of the following commands: `/eurekahelper`, `/ehelper`, or `/eh`. All available commands are listed in the "About" tab.  
+「互動選項」設定為「喊話到聊天」且同時安裝 Chat 2 時，點擊聊天中的訊息連結會導致遊戲當機。
 
-Leave a star ⭐ on this repository if you have enjoyed using the plugin!
+## 安裝
 
-## Installation
-The plugin is available for download via the Dalamud Plugin Installer. Simply type `/xplugins` in-game and select EurekaHelper for installation.
-To opt in for testing versions (when available), right click EurekaHelper in the Plugin Installer and select `Receive plugin testing versions`.
+在 Dalamud 設定的「自訂插件庫」加入
+`https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json`
+並啟用，再從插件列表安裝。
 
-## Commands
-Following is a list of all available commands for the plugin.
-| Command | Description |
-|:-------:|-------------|
-| `/ehelper` or `/eurekahelper` or `/eh` | Opens the main window |
-| `/etrackers` | Attempts to get a list of public trackers for the current instance in the same datacenter |
-| `/arisu` | Display next weather and time for Crab, Cassie & Skoll<br>![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/0b8d6af7-cf68-40c2-972c-dd194dd43c2a) |
-| `/erelic` | Opens the [Relic Window](#relic-window) which will allow you to track your Eureka relic progression |
-| `/ealarms` | Opens the [Alarms Window](#alarms-window). You will be able to set custom alarms for weather/time in here! |
+## 致謝
 
-## Features
-### FFXIV Eureka Tracker GUI
-The main window of the plugin which displays the in-game FFXIV Eureka Tracker. You can manage the tracker from this window.
-| Not Connected to Tracker | Connected To Tracker |
-|:-------:|----------------------|
-| ![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/b3b3ef48-407c-4cd6-be35-6f421e5a5b14) | ![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/1ff96e27-5216-4059-8648-38845dbf0943) |
-
-### Elementals Manager
-Manage all seen Elementals from this tab! All known Elementals position in game are listed [here](https://github.com/snooooowy/EurekaHelper/issues/13).  
-Feel free to add new Elemental positions in the link above or you can DM me on Discord (@snorux)  
-![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/5655c0f7-7df5-44ba-846c-58f87d542429)
-
-### Instance Tracker
-Want to know which Eureka instance you are in? Want to instance hop? You can use this feature to determine the current Eureka instance ID.  
-⚠️ **Do read the disclaimer before usage.** ⚠️  
-![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/0a321213-5bd0-47c2-8727-21ef97c98ca2)
-
-### Relic Helper
-Keep track of your completed Eureka Relics using this feature. The window also shows the number of items required for each relic stage!  
-![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/36b6f09c-596b-48fb-a978-ae912b94efe8)
-
-### Alarms Manager
-Interested in farming money NMs (e.g Skoll, Crab, Cassie) or lockboxes? You can set an alarm for weather/time conditions using this feature.  
-You will receive an in-game notification whenever the Alarm triggers.  
-![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/ae7e7c57-6ac2-4848-bf59-9991eaa57867)  
-![image](https://github.com/snooooowy/EurekaHelper/assets/34697265/64460d46-f3ff-4ba9-b960-26533f3cb494)
-
-### Cutomizable Configurations
-A highly customizable configuration for the main [Eureka Tracker](#ffxiv-eureka-tracker-gui) window.  
-![image](https://user-images.githubusercontent.com/34697265/235935187-97466b2a-7d35-485d-aee0-23f5da3d0955.png)
-
-## Known Issues
-As of current, if you have `Payload Options` set to `Click to shout` and have `Chat2` plugin installed, the game will freeze once you click on the payload.  
-An issue has been made and you can keep track of it [here](https://github.com/ascclemens/plugin-issues/issues/60).
+本插件為既有 Eureka Helper 插件的延續維護版本，原作者為 Snowy。
