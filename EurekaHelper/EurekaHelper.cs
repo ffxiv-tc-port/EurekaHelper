@@ -180,13 +180,16 @@ namespace EurekaHelper;
         [HelpMessage("Attempts to get a tracker for the current instance in the same datacenter.")]
         private async void ETrackers(string command, string argument)
         {
-            var connectionManager = await EurekaConnectionManager.Connect();
+            // 這個判斷原本在 Connect() 之後：不支援的資料中心（台服＝陸行鳥，不在
+            // Constants.DatacenterStringToEurekaId 裡，CurrentDatacenterId 恆為 0）每次執行
+            // 都會先白連一次 ffxiv-eureka.com 的 websocket，再關掉。改成連線前先判斷。
             if (CurrentDatacenterId == 0)
             {
                 PrintMessage(Loc.Text("This datacenter is not supported currently. Please submit an issue if you think this is incorrect."));
-                await connectionManager.Close();
                 return;
             }
+
+            var connectionManager = await EurekaConnectionManager.Connect();
 
             await connectionManager.Send(JArray.Parse(@$"[ ""1"", ""1"", ""datacenter:{CurrentDatacenterId}"", ""phx_join"", {{}} ]").ToString());
             Thread.Sleep(500);
