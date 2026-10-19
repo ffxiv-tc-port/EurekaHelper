@@ -17,13 +17,13 @@
         {
             return element switch
             {
-                EurekaElement.Wind => "Wind",
-                EurekaElement.Water => "Water",
-                EurekaElement.Earth => "Earth",
-                EurekaElement.Lightning => "Lightning",
-                EurekaElement.Fire => "Fire",
-                EurekaElement.Ice => "Ice",
-                _ => "Unknown"
+                EurekaElement.Wind => Loc.Text("Wind"),
+                EurekaElement.Water => Loc.Text("Water"),
+                EurekaElement.Earth => Loc.Text("Earth"),
+                EurekaElement.Lightning => Loc.Text("Lightning"),
+                EurekaElement.Fire => Loc.Text("Fire"),
+                EurekaElement.Ice => Loc.Text("Ice"),
+                _ => Loc.Text("Unknown")
             };
         }
     }

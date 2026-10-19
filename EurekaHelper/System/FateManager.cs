@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Fates;
+using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Plugin.Services;
@@ -15,13 +17,47 @@ namespace EurekaHelper.System
     public class FateManager : IDisposable
     {
         private readonly EurekaHelper _plugin = null!;
-        private List<IFate> lastFates = new();
+        // 只存 FateId：IFate 包裝的 Equals／GetHashCode／FateId 都解參考 FateContext，跨幀持有＝讀已結束 F.A.T.E. 的記憶體。
+        // 只在框架執行緒（OnUpdate／OnTerritoryChanged）讀寫。
+        private ushort[] lastFateIds = Array.Empty<ushort>();
+        private readonly List<ushort> currFateIds = new();
         private IEurekaTracker EurekaTracker;
+
+        // Fate IDs that have already had an auto-pop time attempt sent this zone visit - guards
+        // AutoPopTimeForAlreadyActiveFates below against resending every tick while the "set
+        // once" async call is in flight.
+        private readonly HashSet<ushort> _autoPopAttempted = new();
+
+        // Ovni (1424) and Tristitia (1422) have no real "next possible spawn" prediction and no reliable way to observe
+        // their completion, so the FATE is assumed to run about 15 minutes: (discovery + 15 min) is its assumed "death",
+        // followed by a 20-minute cooldown - the community-verified ideal 35-minute cycle. A "被...打倒了" chat line
+        // confirming an actual kill (possibly well before the 15-minute mark) is a strictly better anchor: switch to the
+        // real kill time, with the longer 30-minute cooldown that applies to a confirmed kill.
+        private static readonly HashSet<ushort> AssumedDurationFateIds = new() { 1424, 1422 };
+        private static readonly TimeSpan AssumedEventDuration = TimeSpan.FromMinutes(15);
+
+        // Public: also used by CookieBoxTracker to apply the same cooldown rules when reconciling
+        // Ovni/Tristitia's real spawnedAt/killedAt/isNatural data from the community tracker's
+        // /eureka/ba subtree, and by PluginWindow's BA tab to project the "ideal cycle" spawn
+        // predictions shown there.
+        public static readonly TimeSpan NaturalTimeoutRespawnDuration = TimeSpan.FromMinutes(20);
+        public static readonly TimeSpan ConfirmedKillRespawnDuration = TimeSpan.FromMinutes(30);
+
+        // The community-verified "ideal" full cycle length (assumed 15-minute FATE duration + the
+        // 20-minute natural-timeout cooldown) used to project further-out predictions beyond the
+        // first (actual) one - see DrawBaEncounterPrediction in PluginWindow.cs.
+        public static readonly TimeSpan IdealFullCycle = AssumedEventDuration + NaturalTimeoutRespawnDuration;
+
+        // Matches e.g. "未確認飛行物體被<player>打倒了" - the system chat line for an enemy
+        // actually being defeated, as opposed to the FATE simply completing/timing out (which
+        // produces different chat text entirely, see the "目前進度 100%" progress line instead).
+        private static readonly Regex KillConfirmationRegex = new(@"^(?<boss>.+?)被.+打倒了", RegexOptions.Compiled);
 
         public FateManager(EurekaHelper plugin)
         {
             _plugin = plugin;
             DalamudApi.ClientState.TerritoryChanged += OnTerritoryChanged;
+            DalamudApi.ChatGui.ChatMessage += OnChatMessage;
 
             if (Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
             {
@@ -30,15 +66,48 @@ namespace EurekaHelper.System
             }
         }
 
+        private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
+        {
+            if (EurekaTracker == null)
+                return;
+
+            var match = KillConfirmationRegex.Match(message.TextValue);
+            if (!match.Success)
+                return;
+
+            var bossText = match.Groups["boss"].Value;
+            foreach (var fateId in AssumedDurationFateIds)
+            {
+                var fate = EurekaTracker.GetFates().SingleOrDefault(f => f.FateId == fateId);
+                if (fate == null)
+                    continue;
+
+                Loc.TryEurekaName(fate.BossName, out var localizedName);
+                if (localizedName != bossText)
+                    continue;
+
+                // Real, precisely-timed kill confirmation beats the assumed-duration guess used
+                // at discovery time - record it now (silently, since discovery already notified)
+                // with the 30-minute confirmed-kill cooldown, anchored to this actual moment
+                // instead.
+                fate.SetRespawnDuration(ConfirmedKillRespawnDuration);
+                DisplayFatePop(fate, DateTimeOffset.Now.ToUnixTimeMilliseconds(), notify: false);
+            }
+        }
+
         private void OnTerritoryChanged(ushort territoryId)
         {
+            lastFateIds = Array.Empty<ushort>();
+
             if (Utils.IsPlayerInEurekaZone(territoryId))
             {
-                if (EurekaHelper.Config.AutoCreateTracker)
-                    if (!PluginWindow.GetConnection().IsConnected())
-                        _ = Task.Run(async() => await _plugin.PluginWindow.CreateTracker(Utils.GetIndexOfZone(territoryId), true));
+                // Auto Create Tracker is handled by ZoneManager.HandleZoneEntry instead of here: that hook (InitZoneDetour) is what
+                // reads the server ID for this zone entry. Doing it from this (TerritoryChanged) event would race it -
+                // ZoneManager.GetLastServerId(zoneIndex) could still return last visit's (or zero) server ID and silently corrupt
+                // Configuration.TrackerMemory with the wrong ID for future reload-rejoin matching.
 
                 EurekaTracker = Utils.GetEurekaTracker(territoryId);
+                _autoPopAttempted.Clear();
                 DalamudApi.Framework.Update += OnUpdate;
             }
             else
@@ -61,10 +130,11 @@ namespace EurekaHelper.System
                     if (fate.Progress % 25 == 0)
                     {
                         eurekaFate.FateProgress = fate.Progress;
+                        Loc.TryEurekaName(eurekaFate.BossName, out var bossName);
                         var sb = new SeStringBuilder()
-                            .AddText($"{eurekaFate.BossName}: ")
+                            .AddText($"{bossName}: ")
                             .Append(Utils.MapLink(eurekaFate.TerritoryId, eurekaFate.MapId, eurekaFate.FatePosition))
-                            .AddText(" is at ")
+                            .AddText($" {Loc.Text("is at")} ")
                             .AddUiForeground(58)
                             .AddText($"{eurekaFate.FateProgress}%")
                             .AddUiForegroundOff();
@@ -74,33 +144,106 @@ namespace EurekaHelper.System
                 }
             }
 
-            if (DalamudApi.FateTable.SequenceEqual(lastFates))
+            AutoPopTimeForAlreadyActiveFates();
+
+            currFateIds.Clear();
+            foreach (var fate in DalamudApi.FateTable)
+            {
+                if (fate != null)
+                    currFateIds.Add(fate.FateId);
+            }
+
+            if (currFateIds.SequenceEqual(lastFateIds))
                 return;
 
-            var currFates = DalamudApi.FateTable.Except(lastFates).ToList();
-            var newFates = EurekaTracker.GetFates().Where(i => currFates.Select(i => i.FateId).Contains(i.FateId)).ToList();
+            var appearedIds = currFateIds.Except(lastFateIds).ToHashSet();
+            var newFates = EurekaTracker.GetFates().Where(i => appearedIds.Contains(i.FateId)).ToList();
 
             foreach (var fate in newFates)
-                DisplayFatePop(fate);
+            {
+                if (AssumedDurationFateIds.Contains(fate.FateId))
+                    HandleSpecialFateDiscovery(fate, notify: true);
+                else
+                    DisplayFatePop(fate);
+            }
 
-            lastFates = DalamudApi.FateTable.ToList();
+            lastFateIds = currFateIds.ToArray();
         }
 
-        public static void DisplayFatePop(EurekaFate fate)
+        // See AssumedDurationFateIds - anchors the cooldown to (discovery + AssumedEventDuration)
+        // rather than the discovery moment itself, since these two FATEs typically keep running
+        // for a while after they start. OnChatMessage will later overwrite this with the real
+        // kill time if a "被...打倒了" confirmation line shows up before that assumed point.
+        private static void HandleSpecialFateDiscovery(EurekaFate fate, bool notify)
         {
+            fate.SetRespawnDuration(NaturalTimeoutRespawnDuration);
+            var assumedKillTimestamp = DateTimeOffset.Now.Add(AssumedEventDuration).ToUnixTimeMilliseconds();
+            DisplayFatePop(fate, assumedKillTimestamp, notify);
+        }
+
+        // DisplayFatePop's AutoPopFate logic only fires off the newFates diff, a one-shot edge trigger against lastFates.
+        // An NM that was ALREADY active when you zoned in is caught by that diff only if the tracker connection has finished
+        // (re)connecting by that exact tick; zone entry kicks off an async reconnect (see ZoneManager.HandleZoneEntry), and
+        // if it is still in flight DisplayFatePop drops the pop-time write and the fate is never flagged as "new" again.
+        // This runs every tick (idempotent via _autoPopAttempted) and catches the fate once the connection is ready.
+        private void AutoPopTimeForAlreadyActiveFates()
+        {
+            if (!EurekaHelper.Config.AutoPopFate)
+                return;
+
+            var connection = PluginWindow.GetConnection();
+            if (!connection.IsConnected() || !connection.CanModify())
+                return;
+
+            var activeFateIds = new HashSet<ushort>(DalamudApi.FateTable.Where(x => !Utils.IsBunnyFate(x.FateId)).Select(x => x.FateId));
+            var trackerFates = connection.GetTracker().GetFates();
+
+            foreach (var eurekaFate in EurekaTracker.GetFates())
+            {
+                if (!activeFateIds.Contains(eurekaFate.FateId) || _autoPopAttempted.Contains(eurekaFate.FateId))
+                    continue;
+
+                var trackerFate = trackerFates.Find(x => x.IncludeInTracker && x.FateId == eurekaFate.FateId);
+                if (trackerFate is null)
+                    continue;
+
+                if (trackerFate.IsPopped() && !(EurekaHelper.Config.AutoPopFateWithinRange && trackerFate.IsRespawnTimeWithinRange(TimeSpan.FromMinutes(5))))
+                    continue;
+
+                _autoPopAttempted.Add(eurekaFate.FateId);
+
+                if (AssumedDurationFateIds.Contains(eurekaFate.FateId))
+                {
+                    HandleSpecialFateDiscovery(eurekaFate, notify: false);
+                    continue;
+                }
+
+                _ = Task.Run(async () => await connection.SetPopTime((ushort)eurekaFate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+            }
+        }
+
+        // popTimestamp overrides what gets written as the pop time on the shared tracker (defaults
+        // to now) - used by Ovni/Tristitia's virtual/confirmed-kill handling below, where the
+        // "true" pop moment isn't simply "whenever we noticed". notify controls the toast/chat/
+        // sound entirely, for the same two fates' silent kill-confirmation correction.
+        public static void DisplayFatePop(EurekaFate fate, long? popTimestamp = null, bool notify = true)
+        {
+            Loc.TryEurekaName(fate.BossName, out var bossName);
             var sb = new SeStringBuilder()
-                .AddText($"{fate.BossName}: ")
+                .AddText($"{bossName}: ")
                 .Append(Utils.MapLink(fate.TerritoryId, fate.MapId, fate.FatePosition));
+
+            var timestamp = popTimestamp ?? DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
             if (!fate.IsBunnyFate)
             {
-                if (EurekaHelper.Config.DisplayToastPop)
+                if (notify && EurekaHelper.Config.DisplayToastPop)
                     DalamudApi.ToastGui.ShowQuest(sb.BuiltString);
 
-                if (EurekaHelper.Config.PlayPopSound)
+                if (notify && EurekaHelper.Config.PlayPopSound)
                     SoundManager.PlayNMSoundEffect();
 
-                if (EurekaHelper.Config.DisplayFatePop)
+                if (notify && EurekaHelper.Config.DisplayFatePop)
                 {
                     DalamudApi.ChatGui.RemoveChatLinkHandler(fate.FateId);
                     if (EurekaHelper.Config.PayloadOptions != PayloadOptions.Nothing)
@@ -124,15 +267,15 @@ namespace EurekaHelper.System
 
                         var text = EurekaHelper.Config.PayloadOptions switch
                         {
-                            PayloadOptions.ShoutToChat => "shout",
-                            PayloadOptions.CopyToClipboard => "copy",
-                            _ => "shout"
+                            PayloadOptions.ShoutToChat => Loc.Text("shout"),
+                            PayloadOptions.CopyToClipboard => Loc.Text("copy"),
+                            _ => Loc.Text("shout")
                         };
 
                         sb.AddText(" ");
                         sb.AddUiForeground(32);
                         sb.Add(payload);
-                        sb.AddText($"[Click to {text}]");
+                        sb.AddText(Loc.Format("[Click to {0}]", text));
                         sb.Add(RawPayload.LinkTerminator);
                         sb.AddUiForegroundOff();
                     }
@@ -153,7 +296,7 @@ namespace EurekaHelper.System
                         {
                             _ = Task.Run(async () =>
                             {
-                                await PluginWindow.GetConnection().SetPopTime((ushort)fate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds());
+                                await PluginWindow.GetConnection().SetPopTime((ushort)fate.TrackerId, timestamp);
                             });
                         }
                     }
@@ -172,6 +315,7 @@ namespace EurekaHelper.System
         public void Dispose()
         {
             DalamudApi.ClientState.TerritoryChanged -= OnTerritoryChanged;
+            DalamudApi.ChatGui.ChatMessage -= OnChatMessage;
             DalamudApi.Framework.Update -= OnUpdate;
         }
     }

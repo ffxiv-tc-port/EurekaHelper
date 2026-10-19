@@ -17,7 +17,7 @@ namespace EurekaHelper.Windows
     {
         private readonly EurekaHelper Plugin = null!;
 
-        public AlarmWindow(EurekaHelper plugin) : base("Eureka Helper - Alarms")
+        public AlarmWindow(EurekaHelper plugin) : base(Loc.Text("Eureka Helper - Alarms"))
         {
             Plugin = plugin;
             SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(360, 350), MaximumSize = new Vector2(float.MaxValue, float.MaxValue) };
@@ -45,7 +45,7 @@ namespace EurekaHelper.Windows
                 IsInMenu = false;
                 ImGui.OpenPopup("Add Alarm");
             }
-            Utils.SetTooltip("Add an alarm");
+            Utils.SetTooltip(Loc.Text("Add an alarm"));
 
             ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
             ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
@@ -66,25 +66,25 @@ namespace EurekaHelper.Windows
                     IsInMenu = true;
                 }
 
-                ImGui.Text("Add Alarm");
+                ImGui.Text(Loc.Text("Add Alarm"));
                 ImGui.SetNextItemWidth(LabelSize);
-                ImGui.LabelText("##NameLabel", "Name:"); 
+                ImGui.LabelText("##NameLabel", Loc.Text("Name:")); 
                 ImGui.SameLine(); 
                 ImGui.SetNextItemWidth(150f);
-                ImGui.InputTextWithHint("##Name", "Name of alarm", ref AlarmName, 15);
+                ImGui.InputTextWithHint("##Name", Loc.Text("Name of alarm"), ref AlarmName, 15);
 
                 ImGui.SetNextItemWidth(LabelSize);
-                ImGui.LabelText("##TypeLabel", "Type:"); 
+                ImGui.LabelText("##TypeLabel", Loc.Text("Type:")); 
                 ImGui.SameLine(); 
                 ImGui.SetNextItemWidth(150f);
                 var currentAlarmType = Array.IndexOf(Enum.GetValues<AlarmType>(), AlarmType);
-                if (ImGui.Combo("##AlarmTypeCombo", ref currentAlarmType, Enum.GetNames<AlarmType>(), Enum.GetNames<AlarmType>().Length))
+                if (ImGui.Combo("##AlarmTypeCombo", ref currentAlarmType, Loc.EnumNames<AlarmType>(), Enum.GetNames<AlarmType>().Length))
                     AlarmType = Enum.GetValues<AlarmType>()[currentAlarmType];
 
                 if (AlarmType == AlarmType.Weather)
                 {
                     ImGui.SetNextItemWidth(LabelSize);
-                    ImGui.LabelText("##ZoneLabel", "Zone:"); 
+                    ImGui.LabelText("##ZoneLabel", Loc.Text("Zone:")); 
                     ImGui.SameLine(); 
                     ImGui.SetNextItemWidth(150f);
                     var allZones = Constants.EurekaZones.Select(Utils.GetZoneName).ToArray();
@@ -93,7 +93,7 @@ namespace EurekaHelper.Windows
                         AlarmZone = Constants.EurekaZones[currentZone];
 
                     ImGui.SetNextItemWidth(LabelSize);
-                    ImGui.LabelText("##WeatherLabel", "Weather:"); 
+                    ImGui.LabelText("##WeatherLabel", Loc.Text("Weather:")); 
                     ImGui.SameLine(); 
                     ImGui.SetNextItemWidth(150f);
 
@@ -120,16 +120,16 @@ namespace EurekaHelper.Windows
                 else
                 {
                     ImGui.SetNextItemWidth(LabelSize);
-                    ImGui.LabelText("##TimeLabel", "Time:"); 
+                    ImGui.LabelText("##TimeLabel", Loc.Text("Time:")); 
                     ImGui.SameLine(); 
                     ImGui.SetNextItemWidth(150f);
                     var currentTimeType = Array.IndexOf(Enum.GetValues<TimeType>(), TimeType);
-                    if (ImGui.Combo("##TimeTypeCombo", ref currentTimeType, Enum.GetNames<TimeType>(), Enum.GetNames<TimeType>().Length))
+                    if (ImGui.Combo("##TimeTypeCombo", ref currentTimeType, Loc.EnumNames<TimeType>(), Enum.GetNames<TimeType>().Length))
                         TimeType = Enum.GetValues<TimeType>()[currentTimeType];
                 }
 
                 ImGui.SetNextItemWidth(LabelSize);
-                ImGui.LabelText("##SoundLabel", "Sound Effect:"); 
+                ImGui.LabelText("##SoundLabel", Loc.Text("Sound Effect:")); 
                 ImGui.SameLine(); 
                 ImGui.SetNextItemWidth(150f);
                 var useChatSoundEffect = EurekaHelper.Config.GlobalUseChatSoundEffect;
@@ -149,12 +149,12 @@ namespace EurekaHelper.Windows
                 }
 
                 ImGui.SetNextItemWidth(LabelSize);
-                ImGui.LabelText("##TimeLabel", "Minutes Before:");
+                ImGui.LabelText("##TimeLabel", Loc.Text("Minutes Before:"));
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(150f);
                 ImGui.SliderInt("##TimeSlider", ref MinutesBefore, 1, 20, "%d", ImGuiSliderFlags.NoInput);
 
-                if (ImGui.Button("Add", new Vector2(ImGui.GetContentRegionAvail().X, 0.0f))) 
+                if (ImGui.Button(Loc.Text("Add"), new Vector2(ImGui.GetContentRegionAvail().X, 0.0f))) 
                 {
                     Plugin.AlarmManager.AddAlarm(CreateAlarm());
                     ImGui.CloseCurrentPopup();
@@ -167,13 +167,13 @@ namespace EurekaHelper.Windows
             ImGui.PopStyleColor();
 
             ImGui.SameLine();
-            if (ImGui.Button("Delete All"))
+            if (ImGui.Button(Loc.Text("Delete All")))
                 Plugin.AlarmManager.DeleteAlarm(null, true); 
             
-            ImGuiComponents.HelpMarker("Wow, you can now edit alarms.");
+            ImGuiComponents.HelpMarker(Loc.Text("Wow, you can now edit alarms."));
 
             ImGui.Separator();
-            ImGui.Text("Your Alarms");
+            ImGui.Text(Loc.Text("Your Alarms"));
 
             ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0.0f, 0.0f));
@@ -190,9 +190,9 @@ namespace EurekaHelper.Windows
         {
             if (ImGui.BeginTable("AlarmTable", 3, ImGuiTableFlags.Resizable | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.BordersV | ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoSavedSettings))
             {
-                ImGui.TableSetupColumn("Alarm Name");
-                ImGui.TableSetupColumn("Timeleft");
-                ImGui.TableSetupColumn("Alarm Configurations / Edit", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn(Loc.Text("Alarm Name"));
+                ImGui.TableSetupColumn(Loc.Text("Timeleft"));
+                ImGui.TableSetupColumn(Loc.Text("Alarm Configurations / Edit"), ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableHeadersRow();
 
                 for (int i = EurekaHelper.Config.Alarms.Count - 1; i >= 0; i--)
@@ -207,37 +207,37 @@ namespace EurekaHelper.Windows
                         ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
                         ImGui.BeginTooltip();
 
-                        ImGui.TextColored(ImGuiColors.DalamudOrange, "Alarm Information");
-                        ImGui.Text("Name:");
+                        ImGui.TextColored(ImGuiColors.DalamudOrange, Loc.Text("Alarm Information"));
+                        ImGui.Text(Loc.Text("Name:"));
                         ImGui.SameLine();
                         ImGui.Text(alarm.Name);
 
-                        ImGui.Text("Type:");
+                        ImGui.Text(Loc.Text("Type:"));
                         ImGui.SameLine();
-                        ImGui.Text(alarm.Type.ToString());
+                        ImGui.Text(Loc.Enum(alarm.Type));
 
                         if (alarm.Type == AlarmType.Weather)
                         {
-                            ImGui.Text("Zone:");
+                            ImGui.Text(Loc.Text("Zone:"));
                             ImGui.SameLine();
                             ImGui.Text(Utils.GetZoneName(alarm.ZoneId));
 
-                            ImGui.Text("Weather:");
+                            ImGui.Text(Loc.Text("Weather:"));
                             ImGui.SameLine();
                             ImGui.Text(alarm.Weather.ToFriendlyString());
                         }
                         else
                         {
-                            ImGui.Text("Time:");
+                            ImGui.Text(Loc.Text("Time:"));
                             ImGui.SameLine();
-                            ImGui.Text(alarm.TimeType.ToString());
+                            ImGui.Text(Loc.Enum(alarm.TimeType));
                         }
 
-                        ImGui.Text("Sound Effect:");
+                        ImGui.Text(Loc.Text("Sound Effect:"));
                         ImGui.SameLine();
                         ImGui.Text(alarm.ChatSoundEffect.ToString());
 
-                        ImGui.Text("Minutes Before:");
+                        ImGui.Text(Loc.Text("Minutes Before:"));
                         ImGui.SameLine();
                         ImGui.Text(alarm.MinutesOffset.ToString());
 
@@ -257,20 +257,20 @@ namespace EurekaHelper.Windows
                     }
                     else
                     {
-                        Utils.RightAlignTextInColumn("Triggered", ImGuiColors.ParsedGreen);
+                        Utils.RightAlignTextInColumn(Loc.Text("Triggered"), ImGuiColors.ParsedGreen);
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
                             ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
                             ImGui.BeginTooltip();
 
-                            ImGui.TextColored(ImGuiColors.DalamudOrange, "Uptime");
+                            ImGui.TextColored(ImGuiColors.DalamudOrange, Loc.Text("Uptime"));
 
-                            ImGui.Text("Start:");
+                            ImGui.Text(Loc.Text("Start:"));
                             ImGui.SameLine();
                             ImGui.Text($"{start:d MMM yyyy hh:mm tt}");
 
-                            ImGui.Text("End:");
+                            ImGui.Text(Loc.Text("End:"));
                             ImGui.SameLine();
                             ImGui.Text($"{end:d MMM yyyy hh:mm tt}");
 
@@ -287,17 +287,17 @@ namespace EurekaHelper.Windows
 
                     if (ImGui.Checkbox($"##Toggle{alarm.ID}", ref enabled))
                         Plugin.AlarmManager.ToggleAlarm(alarm);
-                    Utils.SetTooltip("Toggles the alarm to be enabled/disabled");
+                    Utils.SetTooltip(Loc.Text("Toggles the alarm to be enabled/disabled"));
                     ImGui.SameLine();
 
                     if (ImGui.Checkbox($"##Print{alarm.ID}", ref printMessage))
                         Plugin.AlarmManager.SetAlarmPrintMessage(alarm, printMessage);
-                    Utils.SetTooltip("Prints a message whenever the alarm is triggered");
+                    Utils.SetTooltip(Loc.Text("Prints a message whenever the alarm is triggered"));
                     ImGui.SameLine();
 
                     if (ImGui.Checkbox($"##Toast{alarm.ID}", ref showToast))
                         Plugin.AlarmManager.SetAlarmShowToast(alarm, showToast);
-                    Utils.SetTooltip("Display a toast whenever the alarm is triggered");
+                    Utils.SetTooltip(Loc.Text("Display a toast whenever the alarm is triggered"));
                     ImGui.SameLine();
 
                     if (ImGuiComponents.IconButton($"##Edit{alarm.ID}", FontAwesomeIcon.Edit))
@@ -305,12 +305,12 @@ namespace EurekaHelper.Windows
                         IsInMenu = false;
                         ImGui.OpenPopup($"Edit Alarm {alarm.ID}");
                     }
-                    Utils.SetTooltip("Edit the current alarm");
+                    Utils.SetTooltip(Loc.Text("Edit the current alarm"));
                     ImGui.SameLine();
 
                     if (ImGuiComponents.IconButton($"##Delete{alarm.ID}", FontAwesomeIcon.Trash))
                         Plugin.AlarmManager.DeleteAlarm(alarm);
-                    Utils.SetTooltip("Delete the current alarm");
+                    Utils.SetTooltip(Loc.Text("Delete the current alarm"));
 
                     ImGui.PushStyleVar(ImGuiStyleVar.PopupBorderSize, 1f);
                     ImGui.PushStyleColor(ImGuiCol.Border, ImGui.GetColorU32(ImGuiCol.TabActive));
@@ -330,25 +330,25 @@ namespace EurekaHelper.Windows
                             IsInMenu = true;
                         }
 
-                        ImGui.Text("Edit Alarm");
+                        ImGui.Text(Loc.Text("Edit Alarm"));
                         ImGui.SetNextItemWidth(LabelSize);
-                        ImGui.LabelText("##NameLabel", "Name:");
+                        ImGui.LabelText("##NameLabel", Loc.Text("Name:"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(150f);
-                        ImGui.InputTextWithHint("##Name", "Name of alarm", ref AlarmName, 15);
+                        ImGui.InputTextWithHint("##Name", Loc.Text("Name of alarm"), ref AlarmName, 15);
 
                         ImGui.SetNextItemWidth(LabelSize);
-                        ImGui.LabelText("##TypeLabel", "Type:");
+                        ImGui.LabelText("##TypeLabel", Loc.Text("Type:"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(150f);
                         var currentAlarmType = Array.IndexOf(Enum.GetValues<AlarmType>(), AlarmType);
-                        if (ImGui.Combo("##AlarmTypeCombo", ref currentAlarmType, Enum.GetNames<AlarmType>(), Enum.GetNames<AlarmType>().Length))
+                        if (ImGui.Combo("##AlarmTypeCombo", ref currentAlarmType, Loc.EnumNames<AlarmType>(), Enum.GetNames<AlarmType>().Length))
                             AlarmType = Enum.GetValues<AlarmType>()[currentAlarmType];
 
                         if (AlarmType == AlarmType.Weather)
                         {
                             ImGui.SetNextItemWidth(LabelSize);
-                            ImGui.LabelText("##ZoneLabel", "Zone:");
+                            ImGui.LabelText("##ZoneLabel", Loc.Text("Zone:"));
                             ImGui.SameLine();
                             ImGui.SetNextItemWidth(150f);
                             var allZones = Constants.EurekaZones.Select(Utils.GetZoneName).ToArray();
@@ -357,7 +357,7 @@ namespace EurekaHelper.Windows
                                 AlarmZone = Constants.EurekaZones[currentZone];
 
                             ImGui.SetNextItemWidth(LabelSize);
-                            ImGui.LabelText("##WeatherLabel", "Weather:");
+                            ImGui.LabelText("##WeatherLabel", Loc.Text("Weather:"));
                             ImGui.SameLine();
                             ImGui.SetNextItemWidth(150f);
 
@@ -384,7 +384,7 @@ namespace EurekaHelper.Windows
                         else
                         {
                             ImGui.SetNextItemWidth(LabelSize);
-                            ImGui.LabelText("##TimeLabel", "Time:");
+                            ImGui.LabelText("##TimeLabel", Loc.Text("Time:"));
                             ImGui.SameLine();
                             ImGui.SetNextItemWidth(150f);
                             var currentTimeType = Array.IndexOf(Enum.GetValues<TimeType>(), TimeType);
@@ -393,7 +393,7 @@ namespace EurekaHelper.Windows
                         }
 
                         ImGui.SetNextItemWidth(LabelSize);
-                        ImGui.LabelText("##SoundLabel", "Sound Effect:");
+                        ImGui.LabelText("##SoundLabel", Loc.Text("Sound Effect:"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(150f);
                         var useChatSoundEffect = EurekaHelper.Config.GlobalUseChatSoundEffect;
@@ -413,12 +413,12 @@ namespace EurekaHelper.Windows
                         }
 
                         ImGui.SetNextItemWidth(LabelSize);
-                        ImGui.LabelText("##TimeLabel", "Minutes Before:");
+                        ImGui.LabelText("##TimeLabel", Loc.Text("Minutes Before:"));
                         ImGui.SameLine();
                         ImGui.SetNextItemWidth(150f);
                         ImGui.SliderInt("##TimeSlider", ref MinutesBefore, 1, 20, "%d", ImGuiSliderFlags.NoInput);
 
-                        if (ImGui.Button("Update", new Vector2(ImGui.GetContentRegionAvail().X, 0.0f)))
+                        if (ImGui.Button(Loc.Text("Update"), new Vector2(ImGui.GetContentRegionAvail().X, 0.0f)))
                         {
                             UpdateAlarm(alarm);
                             ImGui.CloseCurrentPopup();

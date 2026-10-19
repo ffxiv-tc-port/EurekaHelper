@@ -32,6 +32,17 @@ namespace EurekaHelper.System
         private int Viewers;
         private IEurekaTracker Tracker;
 
+        // Join() only awaits the outgoing "phx_join" send - the server's accept/reject reply arrives later on the separate
+        // Receive() loop (started fire-and-forget from Connect()). Callers such as PluginWindow.SetConnection check
+        // IsConnected() right after awaiting JoinTracker() and only persist TrackerMemory when connected, so the join has to
+        // wait for that reply. Completed from the Receive() loop on either the success ("initial_payload") or failure
+        // (error "phx_reply") path.
+        private TaskCompletionSource<bool> _joinCompletionSource;
+
+        // 只管心跳；Close() 一進來就取消它，關閉握手期間不會再送心跳。
+        private volatile CancellationTokenSource _heartbeatCts;
+        private string _connectError;
+
         public EurekaConnectionManager()
         {
             ClientWebSocket = new();
@@ -59,6 +70,7 @@ namespace EurekaHelper.System
             {
                 DalamudApi.Log.Information($"Failed to connect to websocket: {ex.Message}");
                 connection.Connected = false;
+                connection._connectError = ex.Message;
             }
 
             return connection;
@@ -117,7 +129,6 @@ namespace EurekaHelper.System
                         break;
 
                     case "phx_reply":
-                        Console.WriteLine("Receiving phx_reply");
                         if (!((string)message.Payload["status"]).Equals("ok"))
                         {
                             if (message.Payload["response"].Type == JTokenType.String)
@@ -127,12 +138,14 @@ namespace EurekaHelper.System
                                     DalamudApi.Log.Information("Invalid instance. Closing connection");
 
                                     Invalid = true;
+                                    _joinCompletionSource?.TrySetResult(false);
                                     await Close();
                                     break;
                                 }
                             }
 
                             DalamudApi.Log.Information($"Received status: \"{message.Payload["status"]}\" and response: \"{message.Payload["response"]["reason"]}\". Closing connection");
+                            _joinCompletionSource?.TrySetResult(false);
                             await Close();
                             break;
                         }
@@ -177,12 +190,11 @@ namespace EurekaHelper.System
 
                         Invalid = false;
                         Connected = true;
+                        _joinCompletionSource?.TrySetResult(true);
 
                         break;
 
                     case "payload":
-                        Console.WriteLine("Receiving payload");
-
                         {
                             if (message.Payload["data"]["attributes"]?["notorious-monsters"] != null)
                             {
@@ -218,6 +230,12 @@ namespace EurekaHelper.System
 
         public async Task Join(string trackerId, string password = null)
         {
+            // 連線失敗時 ClientWebSocket 已被釋放；照樣擲例外，但帶真正的原因而不是「物件已釋放」。
+            if (_connectError != null)
+                throw new InvalidOperationException($"Not connected to the tracker server: {_connectError}");
+
+            _joinCompletionSource = new TaskCompletionSource<bool>();
+
             EurekaTrackerMessage eurekaTrackerMessage = new(
                 true,
                 ++MessageId,
@@ -227,17 +245,44 @@ namespace EurekaHelper.System
 
             await Send(eurekaTrackerMessage.ToMessage());
 
+            // Wait for the server's actual accept/reject reply (see _joinCompletionSource's
+            // comment) instead of returning as soon as the request is sent - callers like
+            // PluginWindow.SetConnection check IsConnected() the moment this returns, and need
+            // that to reflect reality, not "request sent, response pending". Capped so a
+            // never-replying server can't hang the caller forever.
+            var completed = await Task.WhenAny(_joinCompletionSource.Task, Task.Delay(TimeSpan.FromSeconds(10), CancellationTokenSource.Token));
+            if (completed != _joinCompletionSource.Task)
+                DalamudApi.Log.Warning($"[EurekaConnectionManager] Join timed out waiting for server reply for tracker {trackerId}");
+
             // Send heartbeat every 30s after joining
-            _ = Task.Run(async () =>
-            {
-                while (!CancellationTokenSource.Token.IsCancellationRequested)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(30), CancellationTokenSource.Token);
-                    await SendHeartbeat();
-                    DalamudApi.Log.Information("Sending Heartbeat");
-                }
-            }, CancellationTokenSource.Token);
+            var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(CancellationTokenSource.Token);
+            _heartbeatCts = heartbeatCts;
+            var heartbeatToken = heartbeatCts.Token;
+            _ = Task.Run(() => HeartbeatLoopAsync(heartbeatToken), heartbeatToken);
         }
+
+        // 回傳的 Task 不會 faulted（沒人讀它）：取消或關閉途中送出失敗＝正常結束；其餘例外記錄後結束。
+        private async Task HeartbeatLoopAsync(CancellationToken token)
+        {
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), token);
+                    await SendHeartbeat();
+                    DalamudApi.Log.Verbose("Sending Heartbeat");
+                }
+            }
+            catch (Exception) when (token.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, "[EurekaConnectionManager] Heartbeat stopped");
+            }
+        }
+
+        private void StopHeartbeat() => _heartbeatCts?.Cancel();
 
         public static async Task<EurekaConnectionManager> JoinTracker(string trackerId, string password = null)
         {
@@ -330,8 +375,23 @@ namespace EurekaHelper.System
         public async Task Close()
         {
             Connected = false;
+            StopHeartbeat();
 
-            await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", CancellationToken.None);
+            // Bound the close handshake: CloseAsync with no timeout can block indefinitely if the
+            // server doesn't ack, and with up to 4 zone connections closing around the same time
+            // (plugin reload/dispose), that stacks up into a multi-second hitch on whichever thread
+            // is awaiting these in sequence. 2s is plenty for a normal graceful close; anything
+            // slower than that isn't worth waiting on - the socket gets torn down via Cancel() either way.
+            try
+            {
+                using var closeTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await ClientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "closing", closeTimeout.Token);
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Information($"Socket close handshake didn't complete cleanly, forcing teardown: {ex.Message}");
+            }
+
             CancellationTokenSource.Cancel();
             DalamudApi.Log.Information("Successfully closed the socket connection");
 
@@ -401,10 +461,32 @@ namespace EurekaHelper.System
 
         public IEurekaTracker GetTracker() => this.Tracker;
 
-        public async void Dispose()
+        // 卸載路徑：不等關閉握手（不卡住卸載），例外留在回傳的 Task 裡不會變成未處理例外。
+        public void Dispose()
         {
             if (this.IsConnected())
+                _ = CloseQuietlyAsync();
+            else
+                StopHeartbeat(); // 等不到加入回覆的連線沒算「已連線」，但心跳已經在跑
+        }
+
+        private async Task CloseQuietlyAsync()
+        {
+            try
+            {
                 await Close();
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    DalamudApi.Log.Warning($"[EurekaConnectionManager] 卸載時關閉連線失敗：{ex.Message}");
+                }
+                catch
+                {
+                    // 卸載後期記錄服務可能已釋放；吞掉即可。
+                }
+            }
         }
     }
 }

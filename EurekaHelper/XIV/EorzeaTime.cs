@@ -10,6 +10,8 @@ namespace EurekaHelper.XIV
 
         public DateTime EorzeaDateTime { get; set; }
 
+        public bool IsNight => EorzeaDateTime.Hour < 6 || EorzeaDateTime.Hour >= 19;
+
         public EorzeaTime(DateTime dateTime)
         {
             EorzeaDateTime = dateTime;

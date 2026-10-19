@@ -28,8 +28,16 @@ namespace EurekaHelper.XIV
         public bool IsBunnyFate { get; private set; }
         public int FateLevel { get; private set; }
 
-        public EurekaFate(ushort fateId, ushort? trackerId, ushort territoryId, ushort mapId, string fateName, string bossName, string bossShortName, Vector2 fatePosition, string spawnedBy, Vector2 spawnedByPosition, EurekaWeather spawnRequiredWeather, EurekaWeather spawnByRequiredWeather, EurekaElement bossElement, EurekaElement spawnByElement, bool spawnByRequiredNight, int fateLevel, bool includeInTracker = true, bool isBunnyFate = false)
+        private static readonly TimeSpan DefaultRespawnDuration = TimeSpan.FromHours(2);
+
+        // How long after a kill this fate stays "popped"/on cooldown before ticking back to
+        // ready. Defaults to the usual 2h Eureka respawn window; overridable per-fate for cases
+        // like Ovni whose actual cooldown is much shorter.
+        public TimeSpan RespawnDuration { get; private set; }
+
+        public EurekaFate(ushort fateId, ushort? trackerId, ushort territoryId, ushort mapId, string fateName, string bossName, string bossShortName, Vector2 fatePosition, string spawnedBy, Vector2 spawnedByPosition, EurekaWeather spawnRequiredWeather, EurekaWeather spawnByRequiredWeather, EurekaElement bossElement, EurekaElement spawnByElement, bool spawnByRequiredNight, int fateLevel, bool includeInTracker = true, bool isBunnyFate = false, TimeSpan? respawnDuration = null)
         {
+            RespawnDuration = respawnDuration ?? DefaultRespawnDuration;
             FateId = fateId;
             TrackerId = trackerId;
             TerritoryId = territoryId;
@@ -51,7 +59,7 @@ namespace EurekaHelper.XIV
             FateLevel = fateLevel;
         }
 
-        public bool IsPopped() => KilledAt != -1 && (KilledAt + 7200000) > DateTimeOffset.Now.ToUnixTimeMilliseconds();
+        public bool IsPopped() => KilledAt != -1 && (KilledAt + (long)RespawnDuration.TotalMilliseconds) > DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         public bool IsRespawnTimeWithinRange(TimeSpan timespan) => GetRespawnTimeleft() <= timespan;
         
@@ -88,12 +96,42 @@ namespace EurekaHelper.XIV
             return respawnRequirements;
         }
 
+        // Null = ready with no expiry (no weather/night requirement at all). Otherwise, how much
+        // longer the current "ready to spawn" window lasts before the weather changes or day
+        // breaks and it's no longer spawnable. Only meaningful when GetRespawnRequirements()
+        // returns empty (i.e. already ready) - doesn't check IsPopped() itself.
+        public TimeSpan? GetReadyWindowRemaining(IEurekaTracker tracker)
+        {
+            TimeSpan? remaining = null;
+
+            if (SpawnByRequiredWeather != EurekaWeather.None && SpawnByRequiredWeather == tracker.GetCurrentWeatherInfo().Weather)
+                remaining = tracker.GetCurrentWeatherInfo().Timeleft;
+            else if (SpawnRequiredWeather != EurekaWeather.None && SpawnRequiredWeather == tracker.GetCurrentWeatherInfo().Weather)
+                remaining = tracker.GetCurrentWeatherInfo().Timeleft;
+
+            if (SpawnByRequiredNight && (EorzeaTime.Now.EorzeaDateTime.Hour < 6 || EorzeaTime.Now.EorzeaDateTime.Hour >= 19))
+            {
+                var nightRemaining = EorzeaTime.Now.TimeUntilDay();
+                if (remaining is null || nightRemaining < remaining)
+                    remaining = nightRemaining;
+            }
+
+            return remaining;
+        }
+
         public DateTime GetPoppedTime() => EorzeaTime.Zero.AddMilliseconds(KilledAt).ToLocalTime();
 
-        public TimeSpan GetRespawnTimeleft() => TimeSpan.FromMilliseconds(KilledAt + 7200000 - DateTimeOffset.Now.ToUnixTimeMilliseconds());
+        public TimeSpan GetRespawnTimeleft() => TimeSpan.FromMilliseconds(KilledAt + RespawnDuration.TotalMilliseconds - DateTimeOffset.Now.ToUnixTimeMilliseconds());
 
         public void ResetKill() => KilledAt = -1;
 
+        // Lets a fate's cooldown length vary per-occurrence instead of being fixed at
+        // construction - e.g. Ovni/Tristitia use a longer window when their FATE just times out
+        // on its own versus a shorter one when players actually kill it (see FateManager).
+        public void SetRespawnDuration(TimeSpan duration) => RespawnDuration = duration;
+
         public void SetKill(long time) => KilledAt = time;
+
+        public long GetKilledAt() => KilledAt;
     }
 }

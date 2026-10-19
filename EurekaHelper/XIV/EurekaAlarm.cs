@@ -50,21 +50,21 @@ namespace EurekaHelper.XIV
                     .Append($"{Weather.ToFriendlyString()} ")
                     .AddUiForegroundOff()
                     .AddUiForeground(523)
-                    .Append("in ")
+                    .Append(Loc.Text("in "))
                     .AddUiForegroundOff()
                     .AddUiForeground(508)
                     .Append($"{Utils.GetZoneName(ZoneId)} ")
                     .AddUiForegroundOff();
             else
                 sb.AddUiForeground(508)
-                    .Append($"{TimeType} ")
+                    .Append($"{Loc.Enum(TimeType)} ")
                     .AddUiForegroundOff();
 
             if (uptime.Start > DateTime.Now)
             {
                 var diff = uptime.Start - DateTime.Now;
                 sb.AddUiForeground(523)
-                    .Append("will be up in ")
+                    .Append(Loc.Text("will be up in "))
                     .AddUiForegroundOff()
                     .AddUiForeground(559)
                     .Append($"{(diff.ToString(diff.Hours > 0 ? "hh'h 'mm'm 'ss's'" : "mm'm 'ss's'"))} ")
@@ -80,13 +80,13 @@ namespace EurekaHelper.XIV
             {
                 var diff = uptime.End - DateTime.Now;
                 sb.AddUiForeground(523)
-                    .Append("will be up for the next ")
+                    .Append(Loc.Text("will be up for the next "))
                     .AddUiForegroundOff()
                     .AddUiForeground(559)
                     .Append($"{(diff.ToString(diff.Hours > 0 ? "hh'h 'mm'm 'ss's'" : "mm'm 'ss's'"))} ")
                     .AddUiForegroundOff()
                     .AddUiForeground(523)
-                    .Append("to ")
+                    .Append(Loc.Text("to "))
                     .AddUiForegroundOff()
                     .AddUiForeground(559)
                     .Append($"{uptime.End:d MMM yyyy hh:mm tt}")

@@ -87,7 +87,7 @@ namespace EurekaHelper
 
         public bool DisplayToastPop = false;
 
-        public bool AutoPopFate = true;
+        public bool AutoPopFate = false;
 
         public bool RandomizeMapCoords = true;
 
@@ -107,6 +107,59 @@ namespace EurekaHelper
         public ChatSoundEffect BunnyChatSoundEffect { get; set; } = ChatSoundEffect.ChatSoundEffect6;
 
         public PayloadOptions PayloadOptions { get; set; } = PayloadOptions.ShoutToChat;
+
+        /*
+         * Splatoon Configurations
+         */
+
+        // Draws mob aggro-detection ranges via Splatoon IPC. Off by default: requires Splatoon installed, and the
+        // community-sourced range data (AggroRanges.json, see System/SplatoonManager.cs) is not fully verified.
+        public bool EnableSplatoonAggroRanges = false;
+
+        // 仇恨範圍半徑還沒量出來的（Magic/Blood 兩型出廠是 0）要不要在怪腳下畫一個小標記圈。
+        // 半徑 0 在 Splatoon 上等於「完全不畫」，畫面上跟「這隻沒有威脅」長得一模一樣 —— 把
+        // 未知畫成 0 會直接誤導玩家。開起來會改畫一個固定大小的小圈，意思是「這隻是魔法／
+        // 血量偵測型，但範圍未知」，而不是假裝範圍就是那麼大。
+        // 預設關閉：沿用現行行為（不畫）。
+        public bool ShowUnmeasuredAggroMarkers = false;
+
+        // 在優雷卡／兵武塔標示隱藏陷阱與傳送門的「可能有／已確認」兩態（見
+        // System/HazardManager.cs）。預設關閉：需要玩家自己先分類 DataId 才會有東西畫，
+        // 而且需要裝 Splatoon。
+        public bool EnableHazardMarkers = false;
+
+        /*
+         * Relic Window Configurations
+         */
+        public bool AutoOpenRelicWindowInEureka = false;
+
+        /*
+         * Per-zone tracker memory: the last tracker (code/password) connected in each Eureka zone, keyed by zone index
+         * (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos - see Utils.GetIndexOfZone), plus the server ID it was joined on, so a
+         * plugin reload/restart can silently rejoin it when the server ID still matches (see System/ZoneManager.cs).
+         */
+        public Dictionary<int, TrackerMemoryEntry> TrackerMemory = new();
+
+        /*
+         * Last known server ID seen per zone (1=Anemos, 2=Pagos, 3=Pyros, 4=Hydatos), persisted so a plugin reload while
+         * already standing inside an instance doesn't lose it: the game only reports the server ID on an actual zone-entry
+         * event (see ZoneManager.InitZoneDetour). ZoneManager seeds its in-memory copy from this on construction.
+         */
+        public Dictionary<int, ushort> LastServerIdPerZone = new();
+
+        // 每次尋寶推算出新位置、更新地圖旗標時，順便呼叫 vnavmesh 的 "/vnav moveflag" 自動走向
+        // 旗標。需要玩家自己裝 vnavmesh 外掛，沒裝的話這個指令送出去會被遊戲當成無效指令、不會
+        // 有任何效果。預設關閉 - 自動移動角色的行為有其風險（可能把你帶去危險的地方），要玩家
+        // 自己選擇開啟。
+        public bool TreasureHuntAutoMoveFlag = false;
+
+        // 魔法甕尋寶的候選點同時畫到 Mappy 的地圖上（Mappy.Overlay IPC）。沒裝 Mappy 時完全沒有作用，所以預設開。
+        public bool TreasureHuntShowOnMappy = true;
+
+        // 每次挖到寶藏時，把找到當下的座標＋這一輪的完整提示鏈存一筆進來（見
+        // TreasureHuntManager.OnTreasureFound），跨 session 持久化，供之後回頭校正距離等級的
+        // 碼數區間。
+        public List<TreasureFoundRecord> TreasureHuntHistory = new();
 
         /*
          * Server ID Configurations
@@ -142,5 +195,13 @@ namespace EurekaHelper
         public List<EurekaAlarm> Alarms { get; set; } = new();
 
         public void Save() => DalamudApi.PluginInterface.SavePluginConfig(this);
+    }
+
+    [Serializable]
+    public class TrackerMemoryEntry
+    {
+        public string Code = string.Empty;
+        public string Password = string.Empty;
+        public ushort ServerId;
     }
 }

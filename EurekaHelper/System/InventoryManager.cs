@@ -59,12 +59,13 @@ namespace EurekaHelper.System
             {
                 var inventoryManger = FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance();
 
-                foreach (var item in ScannedItems.ToList())
+                // 每半秒跑一次、不分場合：這裡不用 LINQ 與 lambda（每格一個閉包、每個已載入的格子兩個委派）。
+                // 走訪途中只改清單內容、不動字典本身，所以直接列舉字典。
+                foreach (var item in ScannedItems)
                 {
+                    var counts = item.Value;
                     foreach (var inventoryType in InventoriesToScan)
                     {
-                        int totalCount = 0;
-
                         var inventory = inventoryManger->GetInventoryContainer(inventoryType);
                         if (inventory == null)
                             continue;
@@ -72,12 +73,8 @@ namespace EurekaHelper.System
                         if (inventory->IsLoaded == false)
                             continue;
 
-                        totalCount += inventoryManger->GetItemCountInContainer(item.Key, inventoryType);
-
-                        if (ScannedItems[item.Key].Any(x => x.InventoryType == inventoryType))
-                            ScannedItems[item.Key].Single(x => x.InventoryType == inventoryType).Count = totalCount;
-                        else
-                            ScannedItems[item.Key].Add(new(inventoryType, totalCount));
+                        var totalCount = inventoryManger->GetItemCountInContainer(item.Key, inventoryType);
+                        StoreCount(counts, inventoryType, totalCount);
                     }
                 }
             }
@@ -89,6 +86,21 @@ namespace EurekaHelper.System
             {
                 DalamudApi.Framework.RunOnTick(ScanInventories, TimeSpan.FromMilliseconds(500), cancellationToken: CancellationTokenSource.Token);
             }
+        }
+
+        // 每種容器在清單裡至多一筆（只有這裡會加）：有就改數量，沒有才加在最後面。
+        private static void StoreCount(List<InventoryCount> counts, InventoryType inventoryType, int count)
+        {
+            for (var i = 0; i < counts.Count; i++)
+            {
+                if (counts[i].InventoryType != inventoryType)
+                    continue;
+
+                counts[i].Count = count;
+                return;
+            }
+
+            counts.Add(new(inventoryType, count));
         }
 
         public void Dispose()

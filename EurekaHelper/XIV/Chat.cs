@@ -48,7 +48,12 @@ public unsafe class Chat
     public static void SendMessageUnsafe(byte[] message)
     {
         var mes = Utf8String.FromSequence(message);
-        UIModule.Instance()->ProcessChatBoxEntry(mes);
+        // UIModule.Instance() 走 Framework，UI 尚未建立時回 null（CS 手寫實作逐字是
+        // framework == null ? null : framework->GetUIModule()）。取不到就安靜不送，
+        // 但剛配置的 Utf8String 仍然要釋放掉。
+        var uiModule = UIModule.Instance();
+        if (uiModule != null)
+            uiModule->ProcessChatBoxEntry(mes);
         mes->Dtor(true);
     }
     /// <summary>
