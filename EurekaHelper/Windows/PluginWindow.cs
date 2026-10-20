@@ -139,6 +139,8 @@ namespace EurekaHelper.Windows
                     DrawDebugTab();
                     ImGui.EndTabItem();
                 }
+
+                ImGui.EndTabBar();
             }
         }
 

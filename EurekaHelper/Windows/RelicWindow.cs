@@ -52,6 +52,8 @@ namespace EurekaHelper.Windows
                     DrawRelicTab(HydatosRelic.HydatosRelicStages);
                     ImGui.EndTabItem();
                 }
+
+                ImGui.EndTabBar();
             }
         }
 
