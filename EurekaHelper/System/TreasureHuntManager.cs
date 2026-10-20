@@ -458,6 +458,10 @@ namespace EurekaHelper.System
 
         private void OnChatMessage(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool isHandled)
         {
+            // 三條正規式都含字面「財寶」：沒有任何文字片段含「寶」就不可能命中，不必先組整句。
+            if (!AnyTextContains(message, '寶'))
+                return;
+
             var text = message.TextValue;
 
             if (FoundRegex.IsMatch(text))
@@ -514,6 +518,18 @@ namespace EurekaHelper.System
             // 先發布進行中再 Draw：Draw 會送走向旗標，對方下一幀就要看得到 true。
             NotePotHuntHint();
             Draw();
+        }
+
+        // 與 SeString.TextValue 取同一組片段（ITextProvider 的 Text）；一個字不會跨兩個片段。
+        private static bool AnyTextContains(SeString message, char c)
+        {
+            foreach (var payload in message.Payloads)
+            {
+                if (payload is ITextProvider { Text: { } t } && t.Contains(c))
+                    return true;
+            }
+
+            return false;
         }
 
         // 挖到寶藏時，把「找到當下的玩家座標」連同這一輪收集到的完整提示鏈存進歷史紀錄
