@@ -51,9 +51,13 @@ namespace EurekaHelper.Windows
 
         public EurekaConnectionManager GetConnection(int zoneIndex) => Connections[zoneIndex] ??= new EurekaConnectionManager();
 
+        // 不建立預設連線，只回目前放在該區的那一個（可能是 null）。
+        internal static EurekaConnectionManager PeekConnection(int zoneIndex) => Connections[zoneIndex];
+
         // The single funnel point for replacing a zone's connection - also persists it into
         // Configuration.TrackerMemory (code/password/server ID) so a plugin reload/restart can
         // silently rejoin it later (see ZoneManager.HandleZoneEntry).
+        // 多從執行緒池呼叫：連線當場換掉，寫記憶與存檔交給 ZoneManager 排到框架執行緒。
         public void SetConnection(int zoneIndex, EurekaConnectionManager connection)
         {
             Connections[zoneIndex] = connection;
@@ -61,15 +65,13 @@ namespace EurekaHelper.Windows
             if (connection == null || !connection.IsConnected())
                 return;
 
-            var serverId = ZoneManager.GetLastServerId(zoneIndex);
-            EurekaHelper.Config.TrackerMemory[zoneIndex] = new TrackerMemoryEntry
+            var entry = new TrackerMemoryEntry
             {
                 Code = connection.GetTrackerId(),
                 Password = connection.CanModify() ? connection.GetTrackerPassword() : string.Empty,
-                ServerId = serverId,
+                ServerId = ZoneManager.GetLastServerId(zoneIndex),
             };
-            EurekaHelper.Config.Save();
-            DalamudApi.Log.Debug($"[PluginWindow] SetConnection: saved TrackerMemory for zone {zoneIndex}, code={connection.GetTrackerId()}, serverId={serverId}");
+            Plugin.ZoneManager.QueueRememberTracker(zoneIndex, connection, entry);
         }
 
         public void Dispose()

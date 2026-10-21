@@ -319,6 +319,38 @@ namespace EurekaHelper.System
             }, token);
         }
 
+        // TrackerMemory 只在框架執行緒上改（與其他存檔同一條）。執行時該區放的必須仍是這個連線、而且還連著才寫，
+        // 否則代表之後又換過或斷了，這一筆就作廢。
+        internal void QueueRememberTracker(int zoneIndex, EurekaConnectionManager connection, TrackerMemoryEntry entry)
+        {
+            var token = _disposeCts.Token;
+            if (token.IsCancellationRequested || DalamudApi.Framework.IsFrameworkUnloading)
+                return;
+
+            _ = DalamudApi.Framework.Run(() =>
+            {
+                if (token.IsCancellationRequested || DalamudApi.Framework.IsFrameworkUnloading)
+                    return;
+
+                try
+                {
+                    if (!ReferenceEquals(Windows.PluginWindow.PeekConnection(zoneIndex), connection) || !connection.IsConnected())
+                    {
+                        DalamudApi.Log.Debug($"[ZoneManager] 第 {zoneIndex} 區連線已換掉或中斷，不記住追蹤器 {entry.Code}");
+                        return;
+                    }
+
+                    EurekaHelper.Config.TrackerMemory[zoneIndex] = entry;
+                    EurekaHelper.Config.Save();
+                    DalamudApi.Log.Debug($"[ZoneManager] saved TrackerMemory for zone {zoneIndex}, code={entry.Code}, serverId={entry.ServerId}");
+                }
+                catch (Exception ex)
+                {
+                    DalamudApi.Log.Warning($"[ZoneManager] 記住第 {zoneIndex} 區的追蹤器 {entry.Code} 失敗：{ex.Message}");
+                }
+            }, token);
+        }
+
         // 只在伺服器明確回「追蹤器不存在」（IsInvalid）時移除；連不上、逾時、其他錯誤都不算。
         // 該區記憶必須仍是當初拿去重新加入的那一筆（同物件、同代碼），被換成別的就不動。回傳是否移除。
         internal static bool ForgetGoneTracker(Configuration config, int zoneIndex, TrackerMemoryEntry memory, string code, EurekaConnectionManager rejoined)
