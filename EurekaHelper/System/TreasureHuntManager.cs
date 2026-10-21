@@ -1031,6 +1031,42 @@ namespace EurekaHelper.System
             return IsCandidateFallback ? "估計位置（沒有候選點符合）" : "估計位置";
         }
 
+        // 地圖旗標經地圖座標來回（MapLinkPayload 加 0.05 格）會偏幾米；超過這個距離就當使用者自己改過旗標。
+        private const float ManualFlagMatchRadius = PotNavigation.CandidateSnapRadius;
+
+        // 尋寶分頁「手動觸發」按鈕（框架執行緒）。這一輪有提示、遊戲旗標還在本插件放的位置時走自動那條（候選點 3D 座標）；
+        // 否則照舊對遊戲旗標送 /vnav moveflag，不改使用者自己放的旗標的去向。
+        public void ManualMoveToFlag(string source)
+        {
+            if (_hints.Count > 0 && EstimatedPosition is { } estimate)
+            {
+                var target = FlagCandidate?.Position2D ?? estimate;
+                if (TryReadGameFlag(out var flag, out var flagTerritory)
+                    && flagTerritory == DalamudApi.ClientState.TerritoryType
+                    && Vector2.Distance(flag, target) <= ManualFlagMatchRadius)
+                {
+                    SendAutoMove(target, $"{source}，目標={DescribeFlagTarget()}");
+                    return;
+                }
+            }
+
+            SendMoveFlag(source);
+        }
+
+        private static unsafe bool TryReadGameFlag(out Vector2 world, out uint territoryId)
+        {
+            world = default;
+            territoryId = 0;
+            var map = FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentMap.Instance();
+            if (map == null || map->FlagMarkerCount == 0)
+                return false;
+
+            var marker = map->FlagMapMarkers[0];
+            world = new Vector2(marker.XFloat, marker.YFloat);
+            territoryId = marker.TerritoryId;
+            return true;
+        }
+
         // 本插件送 "/vnav moveflag" 一律走這裡，每次送出記一行 Information（來源＋目的地），
         // log 才分得出是誰讓角色動起來。只在框架執行緒呼叫（聊天事件、UI 按鈕）。
         public static void SendMoveFlag(string source, string flatReason = null)

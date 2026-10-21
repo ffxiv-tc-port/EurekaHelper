@@ -1565,7 +1565,7 @@ namespace EurekaHelper.Windows
 
             ImGui.SameLine();
             if (ImGui.Button(Loc.Text("Manual Trigger")))
-                TreasureHuntManager.SendMoveFlag("手動（尋寶分頁「手動觸發」按鈕）");
+                manager.ManualMoveToFlag("手動（尋寶分頁「手動觸發」按鈕）");
             Utils.SetTooltip(Loc.Text("Manually sends the vnavmesh move-to-flag command right now, without waiting for a new hint."));
 
             var showOnMappy = EurekaHelper.Config.TreasureHuntShowOnMappy;
