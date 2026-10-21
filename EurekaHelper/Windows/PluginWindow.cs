@@ -489,7 +489,7 @@ namespace EurekaHelper.Windows
                     }
                 });
             }
-            Utils.SetTooltip(Loc.Text("Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded."));
+            Utils.SetTooltip(Loc.Text("Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded.\n\nThe new times are only sent to your tracker when \"Auto pop fate\" is on and you are connected with the password; otherwise only your local times are updated."));
 
             ImGui.Spacing();
             DrawTrackerTable();

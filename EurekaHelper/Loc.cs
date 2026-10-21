@@ -799,7 +799,7 @@ internal static class Loc
 		["[Triggering: {0}]"] = "[觸發中: {0}]",
 		["Triggering"] = "觸發中",
 		["Sync Recent Pops"] = "同步近期觸發紀錄",
-		["Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded."] = "從社群追蹤網站抓取過去2小時內回報的觸發時間，套用比目前紀錄更新的資料。",
+		["Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded.\n\nThe new times are only sent to your tracker when \"Auto pop fate\" is on and you are connected with the password; otherwise only your local times are updated."] = "從社群追蹤網站抓取過去2小時內回報的觸發時間，套用比目前紀錄更新的資料。\n\n只有開啟「自動標記 FATE 觸發」、而且已用密碼連上追蹤器時，才會把新時間送到追蹤器；否則只更新本機的時間。",
 		["Pull time left: {0}"] = "剩餘回報時間: {0}",
 		["{0} people"] = "{0} 人",
 		["{0} - Pull time left: {1}"] = "{0} - 剩餘回報時間: {1}",
