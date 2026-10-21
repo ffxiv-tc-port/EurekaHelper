@@ -67,6 +67,48 @@ namespace EurekaHelper
 
         public static bool IsBunnyFate(ushort fateId) => Constants.BunnyFates.Contains(fateId);
 
+        // 玩家打的字會出現的頻道（含自己的悄悄話與 /echo）：靠系統訊息文字觸發的處理器一律不收。
+        // 用排除法不用白名單：台服系統訊息實際走哪個頻道沒驗過。低 7 位元是頻道，高位是來源／對象種類。
+        public static bool IsPlayerChatChannel(XivChatType type)
+        {
+            switch ((XivChatType)((int)type & 0x7F))
+            {
+                case XivChatType.Say:
+                case XivChatType.Shout:
+                case XivChatType.Yell:
+                case XivChatType.TellOutgoing:
+                case XivChatType.TellIncoming:
+                case XivChatType.Party:
+                case XivChatType.CrossParty:
+                case XivChatType.Alliance:
+                case XivChatType.PvPTeam:
+                case XivChatType.FreeCompany:
+                case XivChatType.NoviceNetwork:
+                case XivChatType.CustomEmote:
+                case XivChatType.StandardEmote:
+                case XivChatType.Echo:
+                case XivChatType.Ls1:
+                case XivChatType.Ls2:
+                case XivChatType.Ls3:
+                case XivChatType.Ls4:
+                case XivChatType.Ls5:
+                case XivChatType.Ls6:
+                case XivChatType.Ls7:
+                case XivChatType.Ls8:
+                case XivChatType.CrossLinkShell1:
+                case XivChatType.CrossLinkShell2:
+                case XivChatType.CrossLinkShell3:
+                case XivChatType.CrossLinkShell4:
+                case XivChatType.CrossLinkShell5:
+                case XivChatType.CrossLinkShell6:
+                case XivChatType.CrossLinkShell7:
+                case XivChatType.CrossLinkShell8:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         public static int GetIndexOfZone(ushort id) => Array.IndexOf(Constants.EurekaZones, id) + 1;
 
         public static string CombineUrl(string baseUrl, params string[] segments) => string.Join("/", new[] { baseUrl.TrimEnd('/') }.Concat(segments.Select(s => s.Trim('/'))));

@@ -52,6 +52,7 @@ namespace EurekaHelper.System
         // actually being defeated, as opposed to the FATE simply completing/timing out (which
         // produces different chat text entirely, see the "目前進度 100%" progress line instead).
         private static readonly Regex KillConfirmationRegex = new(@"^(?<boss>.+?)被.+打倒了", RegexOptions.Compiled);
+        private bool _ignoredKillChannelLogged;
 
         public FateManager(EurekaHelper plugin)
         {
@@ -74,6 +75,17 @@ namespace EurekaHelper.System
             var match = KillConfirmationRegex.Match(message.TextValue);
             if (!match.Success)
                 return;
+
+            // 別人在聊天打出同一句不能改掉 NM 的重生時間。
+            if (Utils.IsPlayerChatChannel(type))
+            {
+                if (!_ignoredKillChannelLogged)
+                {
+                    _ignoredKillChannelLogged = true;
+                    DalamudApi.Log.Information($"[FateManager] 擊倒訊息來自玩家頻道 {(XivChatType)((int)type & 0x7F)}（原始值 0x{(int)type:X}）：不處理（這行只記第一次）");
+                }
+                return;
+            }
 
             var bossText = match.Groups["boss"].Value;
             foreach (var fateId in AssumedDurationFateIds)

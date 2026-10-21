@@ -106,6 +106,8 @@ namespace EurekaHelper.System
         private TreasureFoundRecord _nearbyHistoricalRecord;
         private List<PotCandidateState> _matchingCandidates = new();
         private bool _secondTreasurePending;
+        private bool _acceptedChannelLogged;
+        private bool _ignoredChannelLogged;
 
         // Func<bool>：true ＝ 新月島魔法甕尋寶這一輪進行中，而且本插件會自己送走向旗標。名字與型別是對外契約，不改。
         public const string PotHuntActiveIpcName = "EurekaHelper.OccultPotHuntActive";
@@ -463,15 +465,23 @@ namespace EurekaHelper.System
                 return;
 
             var text = message.TextValue;
+            var found = FoundRegex.IsMatch(text);
+            var second = !found && SecondTreasureRegex.IsMatch(text);
+            var match = found || second ? null : HintRegex.Match(text);
+            if (!found && !second && !match.Success)
+                return;
 
-            if (FoundRegex.IsMatch(text))
+            if (!NoteTreasureChatChannel(type))
+                return;
+
+            if (found)
             {
                 _secondTreasurePending = false;
                 OnTreasureFound();
                 return;
             }
 
-            if (SecondTreasureRegex.IsMatch(text))
+            if (second)
             {
                 if (PotTreasureCandidates.HasTable(DalamudApi.ClientState.TerritoryType))
                 {
@@ -480,10 +490,6 @@ namespace EurekaHelper.System
                 }
                 return;
             }
-
-            var match = HintRegex.Match(text);
-            if (!match.Success)
-                return;
 
             var direction = match.Groups["dir"].Value;
             var tier = match.Groups["tier"].Value.Trim();
@@ -530,6 +536,23 @@ namespace EurekaHelper.System
             }
 
             return false;
+        }
+
+        // 回 false＝玩家頻道（別人或自己打出同一句），不處理。實際收到的頻道各記一次，供確認台服系統訊息走哪個頻道。
+        private bool NoteTreasureChatChannel(XivChatType type)
+        {
+            var player = Utils.IsPlayerChatChannel(type);
+            if (player ? !_ignoredChannelLogged : !_acceptedChannelLogged)
+            {
+                if (player)
+                    _ignoredChannelLogged = true;
+                else
+                    _acceptedChannelLogged = true;
+                var verdict = player ? "玩家頻道，不處理" : "照常處理";
+                DalamudApi.Log.Information($"[TreasureHuntManager] 尋寶相關訊息來自頻道 {(XivChatType)((int)type & 0x7F)}（原始值 0x{(int)type:X}）：{verdict}（這行每種結果只記第一次）");
+            }
+
+            return !player;
         }
 
         // 挖到寶藏時，把「找到當下的玩家座標」連同這一輪收集到的完整提示鏈存進歷史紀錄
