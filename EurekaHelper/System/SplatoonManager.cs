@@ -100,6 +100,11 @@ namespace EurekaHelper.System
         private const string MutatedStatusName = "突然變異";
         private HashSet<string> _adaptedNames = new();
         private HashSet<string> _mutatedNames = new();
+        // 每幀掃描重用的收集集合與快取（不跨幀保存任何物件包裝或原生指標，見 FrameScanCaches.cs）。
+        private readonly HashSet<string> _scanAdapted = new();
+        private readonly HashSet<string> _scanMutated = new();
+        private readonly MonsterNameCache _nameCache = new();
+        private readonly StatusKindCache _statusKindCache = new();
         private static readonly TimeSpan MutationRedrawInterval = TimeSpan.FromSeconds(1);
         private DateTime _nextMutationRedraw = DateTime.MinValue;
 
@@ -167,8 +172,8 @@ namespace EurekaHelper.System
             var enemyKind = 0;
             var aliveEnemies = 0;
 
-            var currentAdapted = new HashSet<string>();
-            var currentMutated = new HashSet<string>();
+            _scanAdapted.Clear();
+            _scanMutated.Clear();
 
             foreach (var obj in DalamudApi.ObjectTable)
             {
@@ -192,7 +197,7 @@ namespace EurekaHelper.System
                     continue;
                 aliveEnemies++;
 
-                var name = MonsterNameKey.Normalize(battleNpc.Name.TextValue);
+                var name = GetMonsterName(battleNpc);
                 if (string.IsNullOrWhiteSpace(name))
                     continue;
 
@@ -214,11 +219,11 @@ namespace EurekaHelper.System
 
                 foreach (var status in battleNpc.StatusList)
                 {
-                    var statusName = status.GameData.Value.Name.ExtractText();
-                    if (statusName == AdaptedStatusName)
-                        currentAdapted.Add(name);
-                    else if (statusName == MutatedStatusName)
-                        currentMutated.Add(name);
+                    var kind = GetStatusKind(status);
+                    if (kind == MutationStatusKind.Adapted)
+                        _scanAdapted.Add(name);
+                    else if (kind == MutationStatusKind.Mutated)
+                        _scanMutated.Add(name);
                 }
             }
 
@@ -255,16 +260,41 @@ namespace EurekaHelper.System
             // Mutation status can appear/disappear far more often than aggro-range classification
             // does, so it gets its own shorter redraw cadence/layer instead of piggybacking on
             // RedrawInterval above.
-            if (!currentAdapted.SetEquals(_adaptedNames) || !currentMutated.SetEquals(_mutatedNames) ||
+            if (!_scanAdapted.SetEquals(_adaptedNames) || !_scanMutated.SetEquals(_mutatedNames) ||
                 DateTime.UtcNow >= _nextMutationRedraw)
             {
-                _adaptedNames = currentAdapted;
-                _mutatedNames = currentMutated;
+                _adaptedNames = new HashSet<string>(_scanAdapted);
+                _mutatedNames = new HashSet<string>(_scanMutated);
                 Splatoon.RemoveDynamicElements(MutationLayerName);
                 DrawMutationStatus();
                 _nextMutationRedraw = DateTime.UtcNow + MutationRedrawInterval;
             }
         }
+
+        // 與 MonsterNameKey.Normalize(battleNpc.Name.TextValue) 等價：Name 就是 SeString.Parse(同一段位元組)。
+        // 只有 NameId 或位元組變了才重新解析，平常每隻怪 0 配置。
+        private unsafe string GetMonsterName(IBattleNpc battleNpc)
+        {
+            var go = (FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)battleNpc.Address;
+            var raw = MonsterNameCache.TrimAtNul(go->Name);
+            var nameId = battleNpc.NameId;
+            if (_nameCache.TryGet(nameId, raw, out var name))
+                return name;
+            return _nameCache.Store(nameId, raw, MonsterNameKey.Normalize(battleNpc.Name.TextValue));
+        }
+
+        private MutationStatusKind GetStatusKind(Dalamud.Game.ClientState.Statuses.Status status)
+        {
+            var statusId = status.StatusId;
+            if (_statusKindCache.TryGet(statusId, out var kind))
+                return kind;
+            return _statusKindCache.Store(statusId, ClassifyStatusName(status.GameData.Value.Name.ExtractText()));
+        }
+
+        internal static MutationStatusKind ClassifyStatusName(string statusName) =>
+            statusName == AdaptedStatusName ? MutationStatusKind.Adapted
+            : statusName == MutatedStatusName ? MutationStatusKind.Mutated
+            : MutationStatusKind.Other;
 
         // Draws a small solid circle (15% alpha) on any seeded mutant monster whose weather/time-of-day window is active
         // AND that hasn't triggered yet (no 環境適應/突然變異 status) - yellow if predicted to end up "突然變異", green if

@@ -21,6 +21,8 @@ namespace EurekaHelper.System
         // 只在框架執行緒（OnUpdate／OnTerritoryChanged）讀寫。
         private ushort[] lastFateIds = Array.Empty<ushort>();
         private readonly List<ushort> currFateIds = new();
+        // 每幀重用；用完當幀就清空，不跨幀留住任何 IFate 包裝。
+        private readonly List<IFate> instanceFatesScratch = new();
         private IEurekaTracker EurekaTracker;
 
         // Fate IDs that have already had an auto-pop time attempt sent this zone visit - guards
@@ -132,27 +134,39 @@ namespace EurekaHelper.System
         {
             if (EurekaHelper.Config.DisplayFateProgress)
             {
-                var instanceFates = DalamudApi.FateTable.Where(x => !Utils.IsBunnyFate(x.FateId)).ToList();
-                foreach (var fate in instanceFates)
+                try
                 {
-                    EurekaFate eurekaFate = EurekaTracker.GetFates().SingleOrDefault(i => fate.FateId == i.FateId);
-                    if (eurekaFate is null || eurekaFate.FateProgress == fate.Progress)
-                        continue;
-
-                    if (fate.Progress % 25 == 0)
+                    foreach (var x in DalamudApi.FateTable)
                     {
-                        eurekaFate.FateProgress = fate.Progress;
-                        Loc.TryEurekaName(eurekaFate.BossName, out var bossName);
-                        var sb = new SeStringBuilder()
-                            .AddText($"{bossName}: ")
-                            .Append(Utils.MapLink(eurekaFate.TerritoryId, eurekaFate.MapId, eurekaFate.FatePosition))
-                            .AddText($" {Loc.Text("is at")} ")
-                            .AddUiForeground(58)
-                            .AddText($"{eurekaFate.FateProgress}%")
-                            .AddUiForegroundOff();
-
-                        EurekaHelper.PrintMessage(sb.BuiltString);
+                        if (!Utils.IsBunnyFate(x.FateId))
+                            instanceFatesScratch.Add(x);
                     }
+
+                    foreach (var fate in instanceFatesScratch)
+                    {
+                        EurekaFate eurekaFate = SingleTrackedFate(fate.FateId);
+                        if (eurekaFate is null || eurekaFate.FateProgress == fate.Progress)
+                            continue;
+
+                        if (fate.Progress % 25 == 0)
+                        {
+                            eurekaFate.FateProgress = fate.Progress;
+                            Loc.TryEurekaName(eurekaFate.BossName, out var bossName);
+                            var sb = new SeStringBuilder()
+                                .AddText($"{bossName}: ")
+                                .Append(Utils.MapLink(eurekaFate.TerritoryId, eurekaFate.MapId, eurekaFate.FatePosition))
+                                .AddText($" {Loc.Text("is at")} ")
+                                .AddUiForeground(58)
+                                .AddText($"{eurekaFate.FateProgress}%")
+                                .AddUiForegroundOff();
+
+                            EurekaHelper.PrintMessage(sb.BuiltString);
+                        }
+                    }
+                }
+                finally
+                {
+                    instanceFatesScratch.Clear();
                 }
             }
 
@@ -180,6 +194,23 @@ namespace EurekaHelper.System
             }
 
             lastFateIds = currFateIds.ToArray();
+        }
+
+        // 等同 GetFates().SingleOrDefault(i => i.FateId == fateId)（多筆相符一樣擲 InvalidOperationException），但每幀不配置委派與列舉器。
+        private EurekaFate SingleTrackedFate(ushort fateId)
+        {
+            EurekaFate found = null;
+            var matched = false;
+            foreach (var candidate in EurekaTracker.GetFates())
+            {
+                if (candidate.FateId != fateId)
+                    continue;
+                if (matched)
+                    throw new InvalidOperationException("Sequence contains more than one matching element");
+                found = candidate;
+                matched = true;
+            }
+            return found;
         }
 
         // See AssumedDurationFateIds - anchors the cooldown to (discovery + AssumedEventDuration)
