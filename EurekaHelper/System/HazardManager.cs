@@ -404,7 +404,7 @@ namespace EurekaHelper.System
         {
             try
             {
-                File.WriteAllText(_dataPath, JsonConvert.SerializeObject(_data, Formatting.Indented));
+                Dalamud.Utility.FilesystemUtil.WriteAllTextSafe(_dataPath, JsonConvert.SerializeObject(_data, Formatting.Indented));
             }
             catch (Exception ex)
             {

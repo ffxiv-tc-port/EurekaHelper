@@ -409,7 +409,7 @@ namespace EurekaHelper.System
         {
             try
             {
-                File.WriteAllText(_seenMonstersPath, JsonConvert.SerializeObject(_seenMonsters, Formatting.Indented));
+                Dalamud.Utility.FilesystemUtil.WriteAllTextSafe(_seenMonstersPath, JsonConvert.SerializeObject(_seenMonsters, Formatting.Indented));
             }
             catch (Exception ex)
             {
@@ -600,7 +600,7 @@ namespace EurekaHelper.System
         {
             try
             {
-                File.WriteAllText(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
+                Dalamud.Utility.FilesystemUtil.WriteAllTextSafe(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
             }
             catch (Exception ex)
             {
@@ -648,7 +648,7 @@ namespace EurekaHelper.System
                 if (parsed == null || parsed.Count == 0)
                     return false;
 
-                File.WriteAllText(_configPath, JsonConvert.SerializeObject(parsed, Formatting.Indented));
+                Dalamud.Utility.FilesystemUtil.WriteAllTextSafe(_configPath, JsonConvert.SerializeObject(parsed, Formatting.Indented));
                 return true;
             }
             catch (Exception ex)
@@ -682,7 +682,7 @@ namespace EurekaHelper.System
                 };
             }
 
-            File.WriteAllText(_configPath, JsonConvert.SerializeObject(seed, Formatting.Indented));
+            Dalamud.Utility.FilesystemUtil.WriteAllTextSafe(_configPath, JsonConvert.SerializeObject(seed, Formatting.Indented));
         }
 
         private void LoadConfig()
