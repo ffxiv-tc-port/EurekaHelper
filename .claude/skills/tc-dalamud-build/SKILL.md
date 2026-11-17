@@ -7,14 +7,14 @@ description: Build and localize this Dalamud plugin (EurekaHelper) for the Tradi
 
 ## Current state (read this first)
 
-- Branch **`tc-7.20`**, Dalamud **API level 13**, TFM `net9.0-windows`, `DalamudPackager` 13.0.0,
+- Branch **`tc-7.30`**, Dalamud **API level 13**, TFM `net9.0-windows`, `DalamudPackager` 13.0.0,
   `ECommons` `3.0.0.18-api13`.
 - The source is **fully migrated to modern `Dalamud.Bindings.ImGui`** — there is no `using ImGuiNET`
   left anywhere in the repo. `Utils.cs`, `Windows/PluginWindow.cs`, `Windows/AlarmWindow.cs`,
   `Windows/RelicWindow.cs` all use `Dalamud.Bindings.ImGui`.
 - `tc-7.15` is a **frozen API12 archive**. Don't commit to it.
   (GitHub's `origin/HEAD` still points at `tc-7.15`, so a fresh clone lands on the old branch —
-  `git checkout tc-7.20` right after cloning.)
+  `git checkout tc-7.30` right after cloning.)
 
 > **歷史（已不適用）**：這份文件原本整篇的前提是「TC 的 Dalamud 落後 global 好幾個月，只有
 > 傳統的 `ImGui.NET.dll`/`ImGuiScene.dll`，所以要從 pre-migration 的舊 commit 開分支、
@@ -129,7 +129,7 @@ System.Exception: Plugin DLL file at '...\EurekaHelper\bin\Release\EurekaHelper.
 
 > **歷史（已不適用）**：舊版教你 `ilspycmd -p -o <outdir> <舊的 EurekaHelper.dll>` 去把別人 TC 版的
 > 翻譯字典反編譯出來重用，並且說「要在 old-API 分支上翻譯，不要翻 modern `main`」。
-> 現在 `Loc.cs` 已經是本 repo `tc-7.20` 上的一等公民，沒有 old-API 分支可言。
+> 現在 `Loc.cs` 已經是本 repo `tc-7.30` 上的一等公民，沒有 old-API 分支可言。
 
 另外別漏掉 `EurekaHelper/EurekaHelper.yaml`——它餵給 `DalamudPackager` 產生 manifest 的
 `name` / `punchline` / `description` / `tags`，跟 ImGui 視窗完全分開，很容易忘。
