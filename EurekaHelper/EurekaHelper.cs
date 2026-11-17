@@ -297,6 +297,9 @@ namespace EurekaHelper;
         /// </remarks>
         public static void PrintMessage(SeString message)
         {
+            if (_unloading)
+                return;
+
             var sb = new SeStringBuilder()
                 .AddUiForeground(60)
                 .AddText($"[{Plugin.Name}] ")

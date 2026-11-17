@@ -15,6 +15,7 @@ using EurekaHelper.XIV;
 using EurekaHelper.XIV.Zones;
 using Lumina.Excel.Sheets;
 using System.Text;
+using System.Threading;
 
 namespace EurekaHelper.Windows
 {
@@ -54,14 +55,62 @@ namespace EurekaHelper.Windows
         // 不建立預設連線，只回目前放在該區的那一個（可能是 null）。
         internal static EurekaConnectionManager PeekConnection(int zoneIndex) => Connections[zoneIndex];
 
+        // DisposeAllConnections 之後為 true：之後才完成的加入／建立不寫回陣列，直接收掉。
+        private static volatile bool _connectionsClosed;
+
         // The single funnel point for replacing a zone's connection - also persists it into
         // Configuration.TrackerMemory (code/password/server ID) so a plugin reload/restart can
         // silently rejoin it later (see ZoneManager.HandleZoneEntry).
-        // 多從執行緒池呼叫：連線當場換掉，寫記憶與存檔交給 ZoneManager 排到框架執行緒。
+        // 多從執行緒池呼叫：連線當場換掉（被換掉的那條收掉），寫記憶與存檔交給 ZoneManager 排到框架執行緒。
         public void SetConnection(int zoneIndex, EurekaConnectionManager connection)
         {
-            Connections[zoneIndex] = connection;
+            var previous = Interlocked.Exchange(ref Connections[zoneIndex], connection);
+            if (TakeBackIfClosed(zoneIndex, connection))
+                return;
 
+            if (previous != null && !ReferenceEquals(previous, connection))
+                previous.Dispose();
+
+            Remember(zoneIndex, connection);
+        }
+
+        // 只在該區放的仍是 expected、而且它沒連著時才換上 connection；換不了就把 connection 收掉。
+        // 給「開始時看過該區、await 回來才寫」的自動流程用，避免蓋掉等待期間使用者自己加入的追蹤器。
+        internal bool TryReplaceConnection(int zoneIndex, EurekaConnectionManager expected, EurekaConnectionManager connection)
+        {
+            if (connection == null)
+                return false;
+
+            if ((expected != null && expected.IsConnected())
+                || !ReferenceEquals(Interlocked.CompareExchange(ref Connections[zoneIndex], connection, expected), expected))
+            {
+                connection.Dispose();
+                return false;
+            }
+
+            if (TakeBackIfClosed(zoneIndex, connection))
+                return false;
+
+            if (expected != null && !ReferenceEquals(expected, connection))
+                expected.Dispose();
+
+            Remember(zoneIndex, connection);
+            return true;
+        }
+
+        // 卸載後才寫進來的：拿得回來就自己收掉（拿不回來＝DisposeAllConnections 已經收了）。
+        private static bool TakeBackIfClosed(int zoneIndex, EurekaConnectionManager connection)
+        {
+            if (!_connectionsClosed)
+                return false;
+
+            if (connection != null && ReferenceEquals(Interlocked.CompareExchange(ref Connections[zoneIndex], null, connection), connection))
+                connection.Dispose();
+            return true;
+        }
+
+        private void Remember(int zoneIndex, EurekaConnectionManager connection)
+        {
             if (connection == null || !connection.IsConnected())
                 return;
 
@@ -2529,8 +2578,9 @@ namespace EurekaHelper.Windows
 
         public static void DisposeAllConnections()
         {
-            foreach (var connection in Connections)
-                connection?.Dispose();
+            _connectionsClosed = true;
+            for (var i = 0; i < Connections.Length; i++)
+                Interlocked.Exchange(ref Connections[i], null)?.Dispose();
         }
 
         private int IntegerCheck(ImGuiInputTextCallbackDataPtr data)

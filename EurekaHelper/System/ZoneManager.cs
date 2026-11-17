@@ -282,8 +282,11 @@ namespace EurekaHelper.System
                 try
                 {
                     var rejoined = await EurekaConnectionManager.JoinTracker(memory.Code, memory.Password);
-                    EurekaHelper.Plugin.PluginWindow.SetConnection(zoneIndex, rejoined);
-                    DalamudApi.Log.Debug($"[ZoneManager] TryRejoinTracker: zone {zoneIndex} rejoined tracker {memory.Code}, connected={rejoined?.IsConnected()}");
+                    var connected = rejoined?.IsConnected();
+                    if (EurekaHelper.Plugin.PluginWindow.TryReplaceConnection(zoneIndex, connection, rejoined))
+                        DalamudApi.Log.Debug($"[ZoneManager] TryRejoinTracker: zone {zoneIndex} rejoined tracker {memory.Code}, connected={connected}");
+                    else if (!EurekaHelper.IsUnloading)
+                        DalamudApi.Log.Information($"[ZoneManager] 第 {zoneIndex} 區自動重新加入追蹤器 {code} 期間，該區已換成別的連線（或已連上）：不覆蓋，剛加入的這條已關閉");
                     if (rejoined != null && rejoined.IsInvalid())
                         QueueForgetGoneTracker(zoneIndex, memory, code, rejoined);
                 }
@@ -403,7 +406,8 @@ namespace EurekaHelper.System
             {
                 await connection.Close();
                 var rejoined = await EurekaConnectionManager.JoinTracker(code, password);
-                EurekaHelper.Plugin.PluginWindow.SetConnection(zoneIndex, rejoined);
+                if (!EurekaHelper.Plugin.PluginWindow.TryReplaceConnection(zoneIndex, connection, rejoined) && !EurekaHelper.IsUnloading)
+                    DalamudApi.Log.Information($"[ZoneManager] 第 {zoneIndex} 區重建追蹤器 {code} 期間，該區已換成別的連線：不覆蓋，剛加入的這條已關閉");
             });
         }
 
