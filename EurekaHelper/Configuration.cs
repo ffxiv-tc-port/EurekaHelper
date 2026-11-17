@@ -89,6 +89,11 @@ namespace EurekaHelper
 
         public bool AutoPopFate = false;
 
+        // 社群追蹤器回報轉送到 ffxiv-eureka.com 的開關。null＝使用者沒設定過，跟著 AutoPopFate（拆開前的行為）。
+        public bool? ForwardCommunityPopsToTracker = null;
+
+        public bool ForwardCommunityPops() => ForwardCommunityPopsToTracker ?? AutoPopFate;
+
         public bool RandomizeMapCoords = true;
 
         public bool AutoCreateTracker = false;

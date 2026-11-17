@@ -584,8 +584,8 @@ namespace EurekaHelper.System
 
             fate.SetKill(timestamp);
 
-            // 轉送第三方資料到 ffxiv-eureka.com 跟自動回報同一個開關；本機時間照樣更新。
-            if (EurekaHelper.Config.AutoPopFate && fate.TrackerId is { } trackerId && connection.IsConnected() && connection.CanModify())
+            // 轉送第三方資料到 ffxiv-eureka.com 有自己的開關（沒設定過時跟著自動回報）；本機時間照樣更新。
+            if (EurekaHelper.Config.ForwardCommunityPops() && fate.TrackerId is { } trackerId && connection.IsConnected() && connection.CanModify())
                 EurekaHelper.RunInBackground("轉送社群回報的觸發時間", () => connection.SetPopTime(trackerId, timestamp));
 
             return true;

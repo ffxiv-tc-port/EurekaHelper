@@ -539,7 +539,7 @@ namespace EurekaHelper.Windows
                     }
                 });
             }
-            Utils.SetTooltip(Loc.Text("Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded.\n\nThe new times are only sent to your tracker when \"Auto pop fate\" is on and you are connected with the password; otherwise only your local times are updated."));
+            Utils.SetTooltip(Loc.Text("Fetches pop times reported in the last 2 hours from the community tracker and applies any that are newer than what's currently recorded.\n\nThe new times are only sent to your tracker when \"Forward community tracker pop times\" is on and you are connected with the password; otherwise only your local times are updated."));
 
             ImGui.Spacing();
             DrawTrackerTable();
@@ -2115,7 +2115,16 @@ namespace EurekaHelper.Windows
             ImGui.NextColumn();
 
             save |= ImGui.Checkbox(Loc.Text("Auto pop fate"), ref EurekaHelper.Config.AutoPopFate);
-            Utils.SetTooltip(Loc.Text("When connected to a tracker with its password, automatically sends NM pop times to ffxiv-eureka.com (a third-party website): the moment you see an NM FATE start, and pop times picked up from the community tracker.\nEveryone viewing that tracker can see them.\n\nOff: no pop time is sent unless you press \"POP\" or \"Set\" yourself."));
+            Utils.SetTooltip(Loc.Text("When connected to a tracker with its password, automatically sends NM pop times to ffxiv-eureka.com (a third-party website) the moment you see an NM FATE start.\nEveryone viewing that tracker can see them.\nPop times from the community tracker are controlled by \"Forward community tracker pop times\".\n\nOff: no pop time you see is sent unless you press \"POP\" or \"Set\" yourself."));
+            ImGui.NextColumn();
+
+            var forwardCommunityPops = EurekaHelper.Config.ForwardCommunityPops();
+            if (ImGui.Checkbox(Loc.Text("Forward community tracker pop times"), ref forwardCommunityPops))
+            {
+                EurekaHelper.Config.ForwardCommunityPopsToTracker = forwardCommunityPops;
+                save = true;
+            }
+            Utils.SetTooltip(Loc.Text("When connected to a tracker with its password, NM pop times picked up from the community tracker (CooKieBox) are also sent to ffxiv-eureka.com (a third-party website).\nEveryone viewing that tracker can see them.\n\nOff: community pop times only update your local times.\nUntil you change this yourself, it follows \"Auto pop fate\"."));
             ImGui.NextColumn();
 
             ImGui.SetNextItemWidth(140f);
