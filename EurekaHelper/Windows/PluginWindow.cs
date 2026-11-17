@@ -1426,6 +1426,21 @@ namespace EurekaHelper.Windows
             }
         }
 
+        // GetEurekaTracker 每次都 new 整份 FATE 清單並查 LGB；兔子 FATE 只用座標，換區才重建。只在框架執行緒（Draw）用。
+        private ushort _bunnyFatesTerritory;
+        private List<EurekaFate> _bunnyFates = new();
+
+        private List<EurekaFate> GetBunnyFates(ushort territoryId)
+        {
+            if (territoryId != _bunnyFatesTerritory)
+            {
+                _bunnyFates = Utils.GetEurekaTracker(territoryId).GetFates().Where(f => f.IsBunnyFate).ToList();
+                _bunnyFatesTerritory = territoryId;
+            }
+
+            return _bunnyFates;
+        }
+
         public static uint DefaultIcon = 60474;
         public static void ResetDefaultIcon() => DefaultIcon = 60474;
 
@@ -1640,7 +1655,7 @@ namespace EurekaHelper.Windows
 
             if (Utils.IsPlayerInEurekaZone(DalamudApi.ClientState.TerritoryType))
             {
-                var bunnyFates = Utils.GetEurekaTracker(DalamudApi.ClientState.TerritoryType).GetFates().Where(f => f.IsBunnyFate).ToList();
+                var bunnyFates = GetBunnyFates(DalamudApi.ClientState.TerritoryType);
                 foreach (var bunnyFate in bunnyFates)
                 {
                     if (ImGui.Button($"{Loc.Text("Flag Fortune's Rabbit")}##{bunnyFate.FateId}"))
