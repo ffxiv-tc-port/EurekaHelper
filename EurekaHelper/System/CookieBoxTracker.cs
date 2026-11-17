@@ -158,12 +158,19 @@ namespace EurekaHelper.System
 
         private static readonly Regex ResetKeyPattern = new(@"^h_reset_(\w+)_\d+$", RegexOptions.Compiled);
 
+        // 串流只在至少一區連著追蹤器時開（讀這份資料的 UI 與套用出現時間都需要已連線的追蹤器）；
+        // 全斷超過 StopGrace 才停，避免重建連線那幾秒來回開關。
+        private static readonly TimeSpan SuperviseInterval = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan StopGrace = TimeSpan.FromSeconds(30);
+
         private readonly HttpClient _httpClient = new();
         private readonly CancellationTokenSource _cts = new();
         private readonly HashSet<string> _seenHistoryKeys = new();
-        private readonly Task _listenTask;
-        private readonly Task _triggeringListenTask;
-        private readonly Task _baListenTask;
+        private readonly Task _superviseTask;
+
+        // 只在監看迴圈讀寫（Dispose 等監看結束後才讀）。null＝串流沒開。
+        private CancellationTokenSource _streamCts;
+        private volatile Task[] _streamTasks = Array.Empty<Task>();
 
         // Raw merged state for each BA subtree node - kept as JObject (rather than parsed
         // structs) because Firebase "patch" events can update a single field at a time (e.g.
@@ -205,9 +212,79 @@ namespace EurekaHelper.System
 
         public CookieBoxTracker()
         {
-            _listenTask = Task.Run(() => ListenLoop(_cts.Token, StreamPath, HandleEvent, () => _firstEventProcessed = false));
-            _triggeringListenTask = Task.Run(() => ListenLoop(_cts.Token, TriggeringStreamPath, HandleTriggeringEvent, null));
-            _baListenTask = Task.Run(() => ListenLoop(_cts.Token, BaStreamPath, HandleBaEvent, () => _baFirstEventProcessed = false));
+            _superviseTask = Task.Run(() => SuperviseLoop(_cts.Token));
+        }
+
+        private async Task SuperviseLoop(CancellationToken token)
+        {
+            var lastWantedAt = DateTime.MinValue;
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    var now = DateTime.UtcNow;
+                    if (Windows.PluginWindow.AnyTrackerConnected())
+                    {
+                        lastWantedAt = now;
+                        if (_streamCts == null)
+                            StartStreams(token);
+                    }
+                    else if (_streamCts != null && now - lastWantedAt >= StopGrace)
+                    {
+                        StopStreams();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DalamudApi.Log.Warning($"[CookieBoxTracker] 串流監看出錯：{ex.Message}");
+                }
+
+                try { await Task.Delay(SuperviseInterval, token); }
+                catch (OperationCanceledException) { break; }
+            }
+        }
+
+        private void StartStreams(CancellationToken parent)
+        {
+            // 上一輪的迴圈已取消；等它們收完，免得舊迴圈晚到的事件把「第一筆快照」旗標改掉。
+            try { Task.WaitAll(_streamTasks, TimeSpan.FromSeconds(2)); } catch { /* 已取消／已記錄 */ }
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(parent);
+            var token = cts.Token;
+            _streamCts = cts;
+            _streamTasks = new[]
+            {
+                Task.Run(() => ListenLoop(token, StreamPath, HandleEvent, () => _firstEventProcessed = false)),
+                Task.Run(() => ListenLoop(token, TriggeringStreamPath, HandleTriggeringEvent, null)),
+                Task.Run(() => ListenLoop(token, BaStreamPath, HandleBaEvent, () => _baFirstEventProcessed = false)),
+            };
+            DalamudApi.Log.Information("[CookieBoxTracker] 有追蹤器連著：開始連社群追蹤器的 3 條串流");
+        }
+
+        private void StopStreams()
+        {
+            var cts = _streamCts;
+            _streamCts = null;
+            cts.Cancel();
+            _ = Task.WhenAll(_streamTasks).ContinueWith(_ => cts.Dispose(), TaskScheduler.Default);
+            ClearMirroredState();
+            DalamudApi.Log.Information($"[CookieBoxTracker] 所有追蹤器都斷線超過 {StopGrace.TotalSeconds:0} 秒：停掉社群追蹤器串流，清掉鏡像資料");
+        }
+
+        // 串流停著時沒人更新：清掉，重連時由新的第一筆快照補回，不留過期的觸發中／塔況／排班。
+        private void ClearMirroredState()
+        {
+            lock (_activeTriggersLock)
+                _activeTriggersByEventKey.Clear();
+            lock (_triggeringLock)
+                _triggeringByNmId.Clear();
+            lock (_baLock)
+            {
+                _towerRaw = new JObject();
+                _jellyfishRaw = new JObject();
+                _deskRaw = new JObject();
+                _scheduleByPushId.Clear();
+            }
         }
 
         // Tower occupancy as last reported on the site's 塔內狀況 panel. HasPeople is null when
@@ -866,9 +943,8 @@ namespace EurekaHelper.System
             // rather than each .Wait() below blocking the framework thread for its full timeout.
             _httpClient.CancelPendingRequests();
 
-            try { _listenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
-            try { _triggeringListenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
-            try { _baListenTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
+            try { _superviseTask.Wait(TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
+            try { Task.WaitAll(_streamTasks, TimeSpan.FromSeconds(2)); } catch { /* best-effort */ }
             _httpClient.Dispose();
             _cts.Dispose();
         }

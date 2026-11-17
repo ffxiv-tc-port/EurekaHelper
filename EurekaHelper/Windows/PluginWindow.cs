@@ -2585,6 +2585,18 @@ namespace EurekaHelper.Windows
             return Connections[zoneIndex] ??= new EurekaConnectionManager();
         }
 
+        // 任何執行緒：只讀格子與 volatile 的 Connected。
+        internal static bool AnyTrackerConnected()
+        {
+            for (var i = 1; i < Connections.Length; i++)
+            {
+                if (Volatile.Read(ref Connections[i])?.IsConnected() == true)
+                    return true;
+            }
+
+            return false;
+        }
+
         public static void DisposeAllConnections()
         {
             _connectionsClosed = true;
