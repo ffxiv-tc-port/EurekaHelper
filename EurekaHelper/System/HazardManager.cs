@@ -395,6 +395,7 @@ namespace EurekaHelper.System
             catch (Exception ex)
             {
                 DalamudApi.Log.Error(ex, $"[HazardManager] 讀取 {_dataPath} 失敗，改用空資料");
+                SideFileBackup.BackupUnreadable(_dataPath, "HazardManager");
                 _data = new HazardData();
             }
         }

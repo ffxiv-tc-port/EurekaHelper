@@ -399,12 +399,23 @@ namespace EurekaHelper.System
             catch (Exception ex)
             {
                 DalamudApi.Log.Error(ex, $"Failed to load seen-monsters list from {_seenMonstersPath}");
+                SideFileBackup.BackupUnreadable(_seenMonstersPath, "SplatoonManager");
                 _seenMonsters = new();
             }
         }
 
-        private void SaveSeenMonsters() =>
-            File.WriteAllText(_seenMonstersPath, JsonConvert.SerializeObject(_seenMonsters, Formatting.Indented));
+        // 框架執行緒（每幀掃描）呼叫：寫檔失敗不能讓同幀其他 Update 處理器被跳過。
+        private void SaveSeenMonsters()
+        {
+            try
+            {
+                File.WriteAllText(_seenMonstersPath, JsonConvert.SerializeObject(_seenMonsters, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[SplatoonManager] 寫入 {_seenMonstersPath} 失敗");
+            }
+        }
 
         // Redraws every configured NM's aggro ranges for the zone we're currently in. Safe to
         // call repeatedly (e.g. after reloading the config file); Splatoon replaces elements
@@ -585,8 +596,17 @@ namespace EurekaHelper.System
             DrawForCurrentZone();
         }
 
-        private void SaveConfig() =>
-            File.WriteAllText(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
+        private void SaveConfig()
+        {
+            try
+            {
+                File.WriteAllText(_configPath, JsonConvert.SerializeObject(_aggroRanges, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[SplatoonManager] 寫入 {_configPath} 失敗");
+            }
+        }
 
         // Ships next to EurekaHelper.dll (see the csproj's <None Update="System\AggroRanges.seed.json">
         // CopyToOutputDirectory entry) and is tracked in git, unlike the per-player runtime config
@@ -679,6 +699,7 @@ namespace EurekaHelper.System
             catch (Exception ex)
             {
                 DalamudApi.Log.Error(ex, $"Failed to load Splatoon aggro range config from {_configPath}");
+                SideFileBackup.BackupUnreadable(_configPath, "SplatoonManager");
                 _aggroRanges = new();
             }
         }
