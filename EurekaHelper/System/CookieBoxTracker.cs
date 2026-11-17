@@ -586,7 +586,7 @@ namespace EurekaHelper.System
 
             // 轉送第三方資料到 ffxiv-eureka.com 跟自動回報同一個開關；本機時間照樣更新。
             if (EurekaHelper.Config.AutoPopFate && fate.TrackerId is { } trackerId && connection.IsConnected() && connection.CanModify())
-                _ = Task.Run(async () => await connection.SetPopTime(trackerId, timestamp));
+                EurekaHelper.RunInBackground("轉送社群回報的觸發時間", () => connection.SetPopTime(trackerId, timestamp));
 
             return true;
         }

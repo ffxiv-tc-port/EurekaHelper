@@ -208,7 +208,7 @@ namespace EurekaHelper.System
                 // （CreateTracker 會先關掉舊連線）；沒開就只離開舊的並提示，不替使用者在第三方網站建追蹤器。
                 if (EurekaHelper.Config.AutoCreateTracker)
                 {
-                    _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
+                    EurekaHelper.RunInBackground("換副本後自動建立追蹤器", () => EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex));
                     return;
                 }
 
@@ -240,7 +240,7 @@ namespace EurekaHelper.System
             {
                 var connection = EurekaHelper.Plugin.PluginWindow.GetConnection(zoneIndex);
                 if (!connection.IsConnected())
-                    _ = Task.Run(async () => await EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex, true));
+                    EurekaHelper.RunInBackground("進區自動建立追蹤器", () => EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex, true));
             }
         }
 
@@ -399,7 +399,7 @@ namespace EurekaHelper.System
 
             var code = connection.GetTrackerId();
             var password = connection.CanModify() ? connection.GetTrackerPassword() : string.Empty;
-            _ = Task.Run(async () =>
+            EurekaHelper.RunInBackground("重建追蹤器連線", async () =>
             {
                 await connection.Close();
                 var rejoined = await EurekaConnectionManager.JoinTracker(code, password);

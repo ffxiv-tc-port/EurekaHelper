@@ -230,7 +230,9 @@ namespace EurekaHelper.System
                     continue;
                 }
 
-                _ = Task.Run(async () => await connection.SetPopTime((ushort)eurekaFate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds()));
+                var trackerId = eurekaFate.TrackerId;
+                var popTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                EurekaHelper.RunInBackground("自動回報進區時已在進行的 NM", () => connection.SetPopTime((ushort)trackerId, popTime));
             }
         }
 
@@ -297,19 +299,18 @@ namespace EurekaHelper.System
 
                 if (EurekaHelper.Config.AutoPopFate)
                 {
-                    if (PluginWindow.GetConnection().IsConnected() && PluginWindow.GetConnection().CanModify())
+                    var connection = PluginWindow.GetConnection();
+                    if (connection.IsConnected() && connection.CanModify())
                     {
-                        var trackerFate = PluginWindow.GetConnection().GetTracker().GetFates().Find(x => x.IncludeInTracker && x.FateId == fate.FateId);
+                        var trackerFate = connection.GetTracker().GetFates().Find(x => x.IncludeInTracker && x.FateId == fate.FateId);
 
                         if (trackerFate is null)
                             return;
 
                         if (!trackerFate.IsPopped() || (EurekaHelper.Config.AutoPopFateWithinRange && trackerFate.IsRespawnTimeWithinRange(TimeSpan.FromMinutes(5))))
                         {
-                            _ = Task.Run(async () =>
-                            {
-                                await PluginWindow.GetConnection().SetPopTime((ushort)fate.TrackerId, timestamp);
-                            });
+                            var trackerId = fate.TrackerId;
+                            EurekaHelper.RunInBackground("自動回報 NM 出現", () => connection.SetPopTime((ushort)trackerId, timestamp));
                         }
                     }
                 }

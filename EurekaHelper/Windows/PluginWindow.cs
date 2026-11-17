@@ -234,7 +234,7 @@ namespace EurekaHelper.Windows
                 // zone's tracker to create - just create one for whichever tab is currently open.
                 var zoneIndex = SelectedTrackerZoneIndex;
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.Plus))
-                    _ = Task.Run(async () => { await CreateTracker(zoneIndex); });
+                    EurekaHelper.RunInBackground("建立追蹤器", () => CreateTracker(zoneIndex));
                 Utils.SetTooltip(Loc.Text("Create a new tracker"));
             }
 
@@ -296,7 +296,7 @@ namespace EurekaHelper.Windows
                 {
                     var zoneIndex = SelectedTrackerZoneIndex;
                     var oldTrackerId = Connection.GetTrackerId();
-                    _ = Task.Run(async () => { await ExportTracker(zoneIndex, oldTrackerId); });
+                    EurekaHelper.RunInBackground("匯出追蹤器", () => ExportTracker(zoneIndex, oldTrackerId));
                 }
                 Utils.SetTooltip(Loc.Text("Exports the current tracker to a new one"));
 
@@ -310,7 +310,8 @@ namespace EurekaHelper.Windows
 
                 if (ImGuiComponents.IconButton(FontAwesomeIcon.SignOutAlt))
                 {
-                    _ = Task.Run(async () => { await Connection.Close(); });
+                    var conn = Connection;
+                    EurekaHelper.RunInBackground("離開追蹤器", () => conn.Close());
                 }
 
                 Utils.SetTooltip(Loc.Text("Leave the current tracker"));
@@ -444,7 +445,7 @@ namespace EurekaHelper.Windows
                         var conn = Connections[zoneIndex] ??= new EurekaConnectionManager();
                         var enteredCode = TrackerCode;
                         var enteredPassword = TrackerPassword;
-                        _ = Task.Run(async () =>
+                        EurekaHelper.RunInBackground("加入追蹤器", async () =>
                         {
                             if (conn.GetTrackerId() == enteredCode)
                             {
@@ -613,27 +614,33 @@ namespace EurekaHelper.Windows
                 ImGui.TextColored(GreenColorText, Loc.Text("Ready"));
 
             ImGui.SameLine();
-            if (Connection.CanModify())
+            // 連線在按下當下抄：BA 分頁只在繪製期間借用第 4 區，背景工作開跑時選取的區可能已還原。
+            var baConnection = Connection;
+            var trackerId = fate.TrackerId;
+            if (baConnection.CanModify())
             {
                 if (isCurrentlyAlive)
                 {
                     ImGui.PushStyleColor(ImGuiCol.Button, BlueColor);
                     if (ImGui.SmallButton($"{Loc.Text("RESET")}##{fate.TrackerId}"))
-                        _ = Task.Run(async () => { await Connection.Reset((ushort)fate.TrackerId); });
+                        EurekaHelper.RunInBackground("BA 分頁 RESET", () => baConnection.Reset((ushort)trackerId));
                     ImGui.PopStyleColor();
                 }
                 else if (!fate.IsPopped())
                 {
                     ImGui.PushStyleColor(ImGuiCol.Button, BlueColor);
                     if (ImGui.SmallButton($"{Loc.Text("POP")}##{fate.TrackerId}"))
-                        _ = Task.Run(async () => { await Connection.SetPopTime((ushort)fate.TrackerId, DateTimeOffset.Now.ToUnixTimeMilliseconds()); });
+                    {
+                        var popTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                        EurekaHelper.RunInBackground("BA 分頁 POP", () => baConnection.SetPopTime((ushort)trackerId, popTime));
+                    }
                     ImGui.PopStyleColor();
                 }
                 else
                 {
                     ImGui.PushStyleColor(ImGuiCol.Button, RedColor);
                     if (ImGui.SmallButton($"{Loc.Text("RESET")}##{fate.TrackerId}"))
-                        _ = Task.Run(async () => { await Connection.Reset((ushort)fate.TrackerId); });
+                        EurekaHelper.RunInBackground("BA 分頁 RESET", () => baConnection.Reset((ushort)trackerId));
                     ImGui.PopStyleColor();
                 }
             }
@@ -834,7 +841,8 @@ namespace EurekaHelper.Windows
                     {
                         if (ImGui.SmallButton(Loc.Text("Confirm?")))
                         {
-                            _ = Task.Run(async () => { await Connection.ResetAll(); });
+                            var conn = Connection;
+                            EurekaHelper.RunInBackground("全部重設", () => conn.ResetAll());
                             ImGui.CloseCurrentPopup();
                         }
 
@@ -1223,12 +1231,10 @@ namespace EurekaHelper.Windows
                             Loc.Format("{0} {1} {2} {3} ago", ts.Hours, Loc.Text(ts.Hours > 1 ? "hours" : "hour"), ts.Minutes, Loc.Text(ts.Minutes > 1 ? "minutes" : "minute")));
                         if (ImGui.Button($"{Loc.Text("Set")}##{fate.TrackerId}", new Vector2(ImGui.GetContentRegionAvail().X, 0)))
                         {
-                            var editedPopTime = DateTime.Now - ts;
-                            _ = Task.Run(async () =>
-                            {
-                                await Connection.SetPopTime((ushort)fate.TrackerId,
-                                    new DateTimeOffset(editedPopTime).ToUnixTimeMilliseconds());
-                            });
+                            var editedPopTime = new DateTimeOffset(DateTime.Now - ts).ToUnixTimeMilliseconds();
+                            var conn = Connection;
+                            var trackerId = fate.TrackerId;
+                            EurekaHelper.RunInBackground("修改觸發時間", () => conn.SetPopTime((ushort)trackerId, editedPopTime));
                             ImGui.CloseCurrentPopup();
                         }
 
@@ -1330,7 +1336,9 @@ namespace EurekaHelper.Windows
                         ImGui.PushStyleColor(ImGuiCol.Button, RedColor);
                         if (ImGui.Button($"{Loc.Text("RESET")}##{fate.TrackerId}", new Vector2(ImGui.GetColumnWidth(), 0.0f)))
                         {
-                            _ = Task.Run(async () => { await Connection.Reset((ushort)fate.TrackerId); });
+                            var conn = Connection;
+                            var trackerId = fate.TrackerId;
+                            EurekaHelper.RunInBackground("RESET", () => conn.Reset((ushort)trackerId));
                         }
 
                         ImGui.PopStyleColor();
@@ -1349,11 +1357,10 @@ namespace EurekaHelper.Windows
                         ImGui.PushStyleColor(ImGuiCol.Button, BlueColor);
                         if (ImGui.Button($"{Loc.Text("POP")}##{fate.TrackerId}", new Vector2(ImGui.GetColumnWidth(), 0.0f)))
                         {
-                            _ = Task.Run(async () =>
-                            {
-                                await Connection.SetPopTime((ushort)fate.TrackerId,
-                                    DateTimeOffset.Now.ToUnixTimeMilliseconds());
-                            });
+                            var conn = Connection;
+                            var trackerId = fate.TrackerId;
+                            var popTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                            EurekaHelper.RunInBackground("POP", () => conn.SetPopTime((ushort)trackerId, popTime));
                         }
 
                         ImGui.PopStyleColor();

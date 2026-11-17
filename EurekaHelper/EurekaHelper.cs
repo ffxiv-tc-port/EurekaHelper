@@ -347,6 +347,32 @@ namespace EurekaHelper;
             });
         }
 
+        /// <summary>
+        /// fire-and-forget 的背景工作一律走這裡：失敗記一行 Warning（帶 <paramref name="what"/>），不留未觀察的例外。
+        /// 不碰遊戲；要碰遊戲的部分自己再經 <see cref="RunOnFramework"/>。
+        /// </summary>
+        internal static void RunInBackground(string what, Func<Task> work)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await work();
+                }
+                catch (Exception ex)
+                {
+                    try
+                    {
+                        DalamudApi.Log.Warning(ex, $"[背景工作] {what}失敗：{ex.Message}");
+                    }
+                    catch
+                    {
+                        // 卸載後期記錄服務可能已釋放。
+                    }
+                }
+            });
+        }
+
         private static void RunGuarded(string what, Action action)
         {
             try

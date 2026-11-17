@@ -24,7 +24,9 @@ namespace EurekaHelper.System
         private int MessageId;
         private int LastHeartbeatId;
 
-        private bool Connected = false;
+        private volatile bool Connected = false;
+        // Close()／Dispose() 一進來就設；之後讀取迴圈結束算自己收的，不當成斷線。
+        private volatile bool _closing;
         private bool Invalid = false;
         private bool Public = false;
         private string TrackerId;
@@ -76,7 +78,66 @@ namespace EurekaHelper.System
             return connection;
         }
 
+        // 讀取迴圈死掉（解析錯、傳輸中斷、伺服器關閉）時連線就沒有用了：一律標成未連線並收掉，
+        // 不留「顯示已連線、按鈕全失敗」的殭屍連線。回傳的 Task 不會 faulted。
         public async Task Receive()
+        {
+            try
+            {
+                await ReceiveLoop();
+            }
+            catch (Exception ex) when (!_closing && !CancellationTokenSource.IsCancellationRequested)
+            {
+                MarkLost($"讀取失敗：{ex.GetType().Name}：{ex.Message}", isError: true);
+                return;
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            if (!_closing && !CancellationTokenSource.IsCancellationRequested)
+                MarkLost("伺服器關閉了連線", isError: false);
+        }
+
+        private void MarkLost(string reason, bool isError)
+        {
+            if (_closing)
+                return;
+
+            _closing = true;
+            var wasConnected = Connected;
+            Connected = false;
+            StopHeartbeat();
+            _joinCompletionSource?.TrySetResult(false);
+            TearDownSocket();
+
+            Public = false;
+            TrackerId = String.Empty;
+            TrackerPassword = String.Empty;
+            Tracker = null;
+
+            try
+            {
+                var message = $"[EurekaConnectionManager] 追蹤器連線已中斷（{reason}）：標成未連線、停止心跳（原本{(wasConnected ? "已連線" : "未連線")}）";
+                if (isError)
+                    DalamudApi.Log.Warning(message);
+                else
+                    DalamudApi.Log.Information(message);
+            }
+            catch
+            {
+                // 卸載後期記錄服務可能已釋放。
+            }
+        }
+
+        private void TearDownSocket()
+        {
+            try { CancellationTokenSource.Cancel(); } catch (ObjectDisposedException) { }
+            try { ClientWebSocket.Abort(); } catch { }
+        }
+
+        private async Task ReceiveLoop()
         {
             ArraySegment<byte> buffer = new(new byte[2048]);
             do
@@ -374,6 +435,7 @@ namespace EurekaHelper.System
 
         public async Task Close()
         {
+            _closing = true;
             Connected = false;
             StopHeartbeat();
 
@@ -465,9 +527,15 @@ namespace EurekaHelper.System
         public void Dispose()
         {
             if (this.IsConnected())
+            {
                 _ = CloseQuietlyAsync();
-            else
-                StopHeartbeat(); // 等不到加入回覆的連線沒算「已連線」，但心跳已經在跑
+                return;
+            }
+
+            // 等不到加入回覆的連線沒算「已連線」，但心跳與讀取迴圈可能還在跑。
+            _closing = true;
+            StopHeartbeat();
+            TearDownSocket();
         }
 
         private async Task CloseQuietlyAsync()
