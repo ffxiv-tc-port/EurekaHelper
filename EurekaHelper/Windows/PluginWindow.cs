@@ -392,23 +392,28 @@ namespace EurekaHelper.Windows
                         ImGui.Text(Loc.Format("Night in {0}", EorzeaTime.Now.TimeUntilNight().ToString("mm'm 'ss's'")));
                     }
 
-                    ImGui.Dummy(new Vector2(0.0f, 10.0f));
-
-                    ImGui.Text(Loc.Text("Weather:"));
-                    ImGui.SameLine(0.0f, spacing);
-                    ImGui.TextColored(new Vector4(0.0f, 1.0f, 0.0f, 1.0f),
-                        $"{Connection.GetTracker().GetCurrentWeatherInfo().Weather.ToFriendlyString()}");
-                    ImGui.Text(Loc.Format("Ends in {0}", Connection.GetTracker().GetCurrentWeatherInfo().Timeleft.ToString("mm'm 'ss's'")));
-
-                    ImGui.Dummy(new Vector2(0.0f, 10.0f));
-
-                    ImGui.Text(Loc.Text("Weather Forecast:"));
-                    var weatherForecast = Connection.GetTracker().GetAllNextWeatherTime();
-                    foreach (var (Weather, Time) in weatherForecast)
+                    // 只取一次：執行緒池的 Close() 隨時會把 Tracker 設成 null。
+                    var weatherTracker = Connection.GetTracker();
+                    if (weatherTracker != null)
                     {
-                        ImGui.TextColored(PurpleColorText, Weather.ToFriendlyString());
-                        ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
-                        ImGui.Text(Loc.Format("in: {0}", Time.ToString(Time.Hours > 0 ? "hh'h 'mm'm 'ss's'" : "mm'm 'ss's'")));
+                        ImGui.Dummy(new Vector2(0.0f, 10.0f));
+
+                        ImGui.Text(Loc.Text("Weather:"));
+                        ImGui.SameLine(0.0f, spacing);
+                        ImGui.TextColored(new Vector4(0.0f, 1.0f, 0.0f, 1.0f),
+                            $"{weatherTracker.GetCurrentWeatherInfo().Weather.ToFriendlyString()}");
+                        ImGui.Text(Loc.Format("Ends in {0}", weatherTracker.GetCurrentWeatherInfo().Timeleft.ToString("mm'm 'ss's'")));
+
+                        ImGui.Dummy(new Vector2(0.0f, 10.0f));
+
+                        ImGui.Text(Loc.Text("Weather Forecast:"));
+                        var weatherForecast = weatherTracker.GetAllNextWeatherTime();
+                        foreach (var (Weather, Time) in weatherForecast)
+                        {
+                            ImGui.TextColored(PurpleColorText, Weather.ToFriendlyString());
+                            ImGui.SameLine(0.0f, ImGui.GetStyle().ItemInnerSpacing.X);
+                            ImGui.Text(Loc.Format("in: {0}", Time.ToString(Time.Hours > 0 ? "hh'h 'mm'm 'ss's'" : "mm'm 'ss's'")));
+                        }
                     }
 
                     ImGui.EndTooltip();
@@ -1051,7 +1056,9 @@ namespace EurekaHelper.Windows
 
         private void DrawTracker(Func<EurekaFate, bool> fateFilter)
         {
-            var zoneFates = Connection.GetTracker()?.GetFates().Where(x => x.IncludeInTracker).Where(fateFilter).ToList();
+            // 整個表格用同一份：執行緒池的 Close() 隨時會把 Tracker 設成 null。
+            var tracker = Connection.GetTracker();
+            var zoneFates = tracker?.GetFates().Where(x => x.IncludeInTracker).Where(fateFilter).ToList();
             if (zoneFates is null)
                 return;
 
@@ -1095,7 +1102,7 @@ namespace EurekaHelper.Windows
                         case (4, ImGuiSortDirection.Ascending):
                             zoneFates = zoneFates
                                 .OrderBy(x =>
-                                    x.GetRespawnRequirements(Connection.GetTracker())
+                                    x.GetRespawnRequirements(tracker)
                                         .OrderBy(y => !y.Action.Equals("Respawn"))
                                         .ThenByDescending(y => y.Time)
                                         .FirstOrDefault().Time)
@@ -1104,7 +1111,7 @@ namespace EurekaHelper.Windows
                         case (4, ImGuiSortDirection.Descending):
                             zoneFates = zoneFates
                                 .OrderByDescending(x =>
-                                    x.GetRespawnRequirements(Connection.GetTracker())
+                                    x.GetRespawnRequirements(tracker)
                                         .OrderBy(y => !y.Action.Equals("Respawn"))
                                         .ThenByDescending(y => y.Time)
                                         .FirstOrDefault().Time)
@@ -1296,7 +1303,7 @@ namespace EurekaHelper.Windows
 
                 // Respawn In:
                 ImGui.TableNextColumn();
-                var respawnRequirementsUnformatted = fate.GetRespawnRequirements(Connection.GetTracker());
+                var respawnRequirementsUnformatted = fate.GetRespawnRequirements(tracker);
 
                 var respawnRequirements = respawnRequirementsUnformatted.Select(requirement =>
                     (requirement.Action,
@@ -1305,7 +1312,7 @@ namespace EurekaHelper.Windows
 
                 if (respawnRequirements.Length == 0)
                 {
-                    var readyWindowRemaining = fate.GetReadyWindowRemaining(Connection.GetTracker());
+                    var readyWindowRemaining = fate.GetReadyWindowRemaining(tracker);
                     if (readyWindowRemaining.HasValue)
                     {
                         var remainingText = readyWindowRemaining.Value.ToString(

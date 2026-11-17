@@ -302,7 +302,7 @@ namespace EurekaHelper.System
                 ++MessageId,
                 $"instance:{trackerId}",
                 "phx_join",
-                String.IsNullOrWhiteSpace(password) ? new JObject() : JObject.Parse(@$"{{ 'password': '{password}' }}"));
+                String.IsNullOrWhiteSpace(password) ? new JObject() : PasswordPayload(password));
 
             await Send(eurekaTrackerMessage.ToMessage());
 
@@ -372,6 +372,19 @@ namespace EurekaHelper.System
             await Send(eurekaTrackerMessage.ToMessage());
         }
 
+        // 使用者輸入的字串一律當值放進 JObject，不拼進 JSON 文字（含 ' 或 \ 的密碼／代碼不會擲或被改寫）；
+        // 輸出的 JSON 與舊的 JObject.Parse 拼法逐字相同（eurekahelper_json_payload_probe）。
+        internal static JObject PasswordPayload(string password) => new() { ["password"] = password };
+
+        internal static string ExportRequestBody(string oldTrackerId) => new JObject
+        {
+            ["data"] = new JObject
+            {
+                ["attributes"] = new JObject { ["copy-from"] = oldTrackerId },
+                ["type"] = "instances",
+            },
+        }.ToString();
+
         public async Task SetPassword(string password)
         {
             EurekaTrackerMessage eurekaTrackerMessage = new(
@@ -379,7 +392,7 @@ namespace EurekaHelper.System
                 ++MessageId,
                 $"instance:{TrackerId}",
                 "set_password",
-                JObject.Parse(@$"{{ 'password': '{password}' }}"));
+                PasswordPayload(password));
 
             await Send(eurekaTrackerMessage.ToMessage());
         }
@@ -486,7 +499,7 @@ namespace EurekaHelper.System
 
         public static async Task<(string trackerId, string password)> ExportTracker(string oldTrackerId)
         {
-            string jsonContent = JObject.Parse(@$"{{ 'data': {{ 'attributes': {{ 'copy-from': '{oldTrackerId}' }}, 'type': 'instances' }} }}").ToString();
+            string jsonContent = ExportRequestBody(oldTrackerId);
 
             var httpResponseMessage = await HttpClient.PostAsync(
                 TrackerAPIUrl,

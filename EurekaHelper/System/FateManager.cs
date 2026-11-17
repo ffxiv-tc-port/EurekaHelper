@@ -208,7 +208,11 @@ namespace EurekaHelper.System
                 return;
 
             var activeFateIds = new HashSet<ushort>(DalamudApi.FateTable.Where(x => !Utils.IsBunnyFate(x.FateId)).Select(x => x.FateId));
-            var trackerFates = connection.GetTracker().GetFates();
+            // 只取一次並判空：IsConnected() 之後執行緒池的 Close() 仍可能把 Tracker 設成 null。
+            var tracker = connection.GetTracker();
+            if (tracker is null)
+                return;
+            var trackerFates = tracker.GetFates();
 
             foreach (var eurekaFate in EurekaTracker.GetFates())
             {
@@ -302,7 +306,7 @@ namespace EurekaHelper.System
                     var connection = PluginWindow.GetConnection();
                     if (connection.IsConnected() && connection.CanModify())
                     {
-                        var trackerFate = connection.GetTracker().GetFates().Find(x => x.IncludeInTracker && x.FateId == fate.FateId);
+                        var trackerFate = connection.GetTracker()?.GetFates().Find(x => x.IncludeInTracker && x.FateId == fate.FateId);
 
                         if (trackerFate is null)
                             return;

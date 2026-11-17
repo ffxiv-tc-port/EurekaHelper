@@ -197,7 +197,7 @@ namespace EurekaHelper.System
             var lastServerId = LastServerIdPerZone[zoneIndex];
             LastServerIdPerZone[zoneIndex] = serverId;
             EurekaHelper.Config.LastServerIdPerZone[zoneIndex] = serverId;
-            EurekaHelper.Config.Save();
+            QueueSaveConfig();
 
             if (lastServerId != 0)
             {
@@ -242,6 +242,30 @@ namespace EurekaHelper.System
                 if (!connection.IsConnected())
                     EurekaHelper.RunInBackground("進區自動建立追蹤器", () => EurekaHelper.Plugin.PluginWindow.CreateTracker(zoneIndex, true));
             }
+        }
+
+        // 進區 hook 裡不同步寫檔（會卡住進區那一幀）：排到下一幀在框架執行緒存。卸載前沒跑到就不存，
+        // 與其他排到框架的存檔同一條規則（卸載後不寫設定檔）。
+        private void QueueSaveConfig()
+        {
+            var token = _disposeCts.Token;
+            if (token.IsCancellationRequested || DalamudApi.Framework.IsFrameworkUnloading)
+                return;
+
+            _ = DalamudApi.Framework.Run(() =>
+            {
+                if (token.IsCancellationRequested || DalamudApi.Framework.IsFrameworkUnloading)
+                    return;
+
+                try
+                {
+                    EurekaHelper.Config.Save();
+                }
+                catch (Exception ex)
+                {
+                    DalamudApi.Log.Warning($"[ZoneManager] 進區後存檔失敗：{ex.Message}");
+                }
+            }, token);
         }
 
         // Silently rejoins the zone's last-known tracker (from Configuration.TrackerMemory) if we're not already connected
