@@ -274,9 +274,8 @@ namespace EurekaHelper;
         /// <para>
         /// 🔴 本外掛從非 framework 執行緒進來的路徑：<c>/etrackers</c> 在 <c>await EurekaConnectionManager.Connect()</c> 之後的呼叫點
         /// （Dalamud 沒有 SynchronizationContext，續體一律在執行緒池）；<c>PluginWindow.CreateTracker</c>／<c>ExportTracker</c>
-        /// 的成功訊息（同樣在 await 之後，本身又是從 <c>Task.Run</c> 裡呼叫的）；<c>FateManager.DisplayFatePop</c>：除了 framework 上的
-        /// <c>OnUpdate</c>／<c>OnChatMessage</c> 之外，<c>CookieBoxTracker</c> 的 SSE 串流迴圈也會經由
-        /// <c>ProcessNode → ApplySpawn(notify: true) → DisplayFatePop</c> 走到這裡。
+        /// 的成功訊息（同樣在 await 之後，本身又是從 <c>Task.Run</c> 裡呼叫的）。<c>CookieBoxTracker</c> 的 NM 通知
+        /// 經 <see cref="RunOnFramework"/> 排到框架執行緒才呼叫 <c>DisplayFatePop</c>。
         /// </para>
         /// <para>
         /// 📌 <c>IFramework.RunOnFrameworkThread</c> 在<b>已經是</b> framework 執行緒時就地同步執行
@@ -317,6 +316,49 @@ namespace EurekaHelper;
             });
         }
 
+        // 卸載一開始就設；背景或排到框架執行緒的工作在寫回前看它。
+        private static volatile bool _unloading;
+        internal static bool IsUnloading => _unloading;
+
+        /// <summary>
+        /// 把會碰遊戲原生函式或非執行緒安全服務的動作排到框架執行緒；已在框架執行緒就當場執行。
+        /// 插件或框架卸載中一律不執行：卸載期 <c>RunOnFrameworkThread</c> 會在呼叫端執行緒就地跑，正是要避免的事。
+        /// 例外記一行 Error，不往外丟。
+        /// </summary>
+        internal static void RunOnFramework(string what, Action action)
+        {
+            if (_unloading)
+                return;
+
+            var framework = DalamudApi.Framework;
+            if (framework.IsInFrameworkUpdateThread)
+            {
+                RunGuarded(what, action);
+                return;
+            }
+
+            if (framework.IsFrameworkUnloading)
+                return;
+
+            _ = framework.Run(() =>
+            {
+                if (!_unloading)
+                    RunGuarded(what, action);
+            });
+        }
+
+        private static void RunGuarded(string what, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                DalamudApi.Log.Error(ex, $"[EurekaHelper] {what}失敗");
+            }
+        }
+
         private void OnLogin()
         {
             DalamudApi.Framework.RunOnTick(UpdateDatacenterId);
@@ -330,6 +372,7 @@ namespace EurekaHelper;
         
         public void Dispose()
         {
+            _unloading = true;
             WindowSystem.RemoveAllWindows();
             DalamudApi.Dispose();
             FateManager.Dispose();

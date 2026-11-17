@@ -565,8 +565,9 @@ namespace EurekaHelper.System
                 // Fire the same toast/chat/sound notification as a normally-detected pop, even if
                 // we're not currently standing in that zone - this is the whole point of pulling
                 // in a second data source, so it's worth surfacing regardless of location.
+                // 這裡在 SSE 的執行緒池上；通知會呼叫遊戲音效函式，只能在框架執行緒跑。
                 if (notify && !isBackfill)
-                    FateManager.DisplayFatePop(fate);
+                    EurekaHelper.RunOnFramework("社群回報的 NM 出現通知", () => FateManager.DisplayFatePop(fate));
             }
         }
 
