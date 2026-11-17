@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using ECommons;
 using EurekaHelper.System;
 using EurekaHelper.Windows;
 using EurekaHelper.XIV;
@@ -319,6 +320,19 @@ namespace EurekaHelper;
             });
         }
 
+        // ECommonsMain.Init／Dispose 沒有計數、Dispose 是全域收尾（Splatoon.Reset／Shutdown）：
+        // 整個插件只 Init 一次（第一個用 Splatoon 的模組建構時）、只在 Dispose 最後收一次。只在框架執行緒呼叫。
+        private static bool _ecommonsInitialized;
+
+        internal static void EnsureECommons()
+        {
+            if (_ecommonsInitialized)
+                return;
+
+            ECommonsMain.Init(DalamudApi.PluginInterface, Plugin, Module.SplatoonAPI);
+            _ecommonsInitialized = true;
+        }
+
         // 卸載一開始就設；背景或排到框架執行緒的工作在寫回前看它。
         private static volatile bool _unloading;
         internal static bool IsUnloading => _unloading;
@@ -412,6 +426,18 @@ namespace EurekaHelper;
             TreasureHuntManager.Dispose();
             SplatoonManager?.Dispose();
             HazardManager?.Dispose();
+            if (_ecommonsInitialized)
+            {
+                _ecommonsInitialized = false;
+                try
+                {
+                    ECommonsMain.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    DalamudApi.Log.Warning($"[EurekaHelper] 卸載時釋放 ECommons 失敗：{ex.Message}");
+                }
+            }
             CookieBoxTracker?.Dispose();
             PluginWindow.DisposeAllConnections();
             DalamudApi.ChatGui.RemoveChatLinkHandler();

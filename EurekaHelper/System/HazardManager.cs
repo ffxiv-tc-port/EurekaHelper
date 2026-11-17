@@ -74,7 +74,7 @@ namespace EurekaHelper.System
             _dataPath = Path.Combine(DalamudApi.PluginInterface.GetPluginConfigDirectory(), "Hazards.json");
             Load();
 
-            ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+            EurekaHelper.EnsureECommons();
 
             DalamudApi.ClientState.TerritoryChanged += OnTerritoryChanged;
             DalamudApi.ClientState.MapIdChanged += OnMapIdChanged;

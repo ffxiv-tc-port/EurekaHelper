@@ -111,7 +111,7 @@ namespace EurekaHelper.System
             LoadConfig();
             LoadSeenMonsters();
 
-            ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+            EurekaHelper.EnsureECommons();
             Splatoon.SetOnConnect(OnSplatoonConnect);
 
             DalamudApi.ClientState.TerritoryChanged += OnTerritoryChanged;
@@ -689,7 +689,9 @@ namespace EurekaHelper.System
             DalamudApi.Framework.Update -= OnFrameworkUpdate;
             SplatoonCleanup.RemoveElements(LayerName);
             SplatoonCleanup.RemoveElements(MutationLayerName);
-            ECommonsMain.Dispose();
+            // 不在這裡 ECommonsMain.Dispose：那是全域收尾，執行中關掉仇恨範圍會連帶讓尋寶與陷阱的 Splatoon 斷線。
+            // 改成交還 OnConnect 單一槽，Splatoon 重載時不再重畫已停用的仇恨範圍。
+            Splatoon.SetOnConnect(static () => { });
         }
     }
 

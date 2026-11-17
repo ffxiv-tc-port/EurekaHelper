@@ -178,11 +178,8 @@ namespace EurekaHelper.System
             DalamudApi.Framework.Update += OnFrameworkUpdate;
             DalamudApi.ClientState.TerritoryChanged += OnTerritoryChanged;
             DalamudApi.ClientState.Logout += OnLogout;
-            // ECommonsMain.Init/Dispose 是可重複呼叫的（內部有初始化計數），SplatoonManager
-            // 也會各自呼叫一次；兩者互不影響。這裡刻意不在 Dispose() 呼叫 ECommonsMain.Dispose()，
-            // 避免在 SplatoonManager 已停用（EnableSplatoonAggroRanges=false）時把另一個仍在用
-            // 的 Splatoon 連線關掉、或造成重複釋放。
-            ECommonsMain.Init(DalamudApi.PluginInterface, EurekaHelper.Plugin, Module.SplatoonAPI);
+            // ECommons 由 EurekaHelper 統一 Init 一次、在插件 Dispose 最後收一次（Init／Dispose 沒有計數）。
+            EurekaHelper.EnsureECommons();
 
             DalamudApi.ChatGui.ChatMessage += OnChatMessage;
 
@@ -1141,6 +1138,10 @@ namespace EurekaHelper.System
             EndPotHunt(PotHuntEndReason.Unload);
             _potHuntActiveIpc.UnregisterFunc();
             _navTargetIpc.UnregisterFunc();
+            // 卸載不是急停：只停本插件這一輪送出的導航（終點對得上才停），別人的路不碰。
+            var sent = _navTarget.Read();
+            if (sent.Sequence != 0)
+                DalamudApi.Log.Information($"[TreasureHuntManager] 卸載：{StopOwnVnavmesh(sent.Sequence, sent.Destination)}");
             _navTarget.Clear();
             SplatoonCleanup.RemoveElements(LayerName);
             SplatoonCleanup.RemoveElements(HistoryMarkerLayerName);

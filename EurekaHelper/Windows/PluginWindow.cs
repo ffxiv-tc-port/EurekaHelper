@@ -2246,9 +2246,8 @@ namespace EurekaHelper.Windows
                 }
                 else
                 {
-                    // Dispose() 之後一定要把欄位設回 null：留著非 null 的話，
-                    // 外掛卸載時 EurekaHelper.Dispose() 會對同一個實例再 Dispose 一次，等於
-                    // ECommonsMain.Dispose() 被多呼叫一次；重新開啟時舊實例也不會被回收。
+                    // Dispose() 之後一定要把欄位設回 null：留著非 null 的話，外掛卸載時
+                    // EurekaHelper.Dispose() 會對同一個實例再 Dispose 一次；重新開啟時舊實例也不會被回收。
                     EurekaHelper.Plugin.SplatoonManager?.Dispose();
                     EurekaHelper.Plugin.SplatoonManager = null;
                 }
