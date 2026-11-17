@@ -144,6 +144,11 @@ namespace EurekaHelper.System
         private readonly ICallGateSubscriber<bool> _vnavPathRunning;
         private readonly ICallGateSubscriber<List<Vector3>> _vnavPathWaypoints;
 
+        // 帶擁有者端點（新名字，舊端點不改型別），型別逐字照 vnavmesh IPCProvider。舊版 vnavmesh 沒有時由 _vnavRouting 退回舊端點。
+        private readonly ICallGateSubscriber<Vector3, bool, string, bool> _vnavMoveToOwned;
+        private readonly ICallGateSubscriber<string, bool> _vnavStopIfOwner;
+        private readonly VnavOwnedRouting _vnavRouting;
+
         // 艦隊急停：Action<string>，參數是呼叫端署名；與 BOCCHI.StopAll／HoardFarm.StopAll 同形。名字與型別是對外契約。
         public const string StopAllIpcName = "EurekaHelper.StopAll";
         private readonly ICallGateProvider<string, object> _stopAllIpc;
@@ -195,6 +200,15 @@ namespace EurekaHelper.System
             _vnavMoveInProgress = DalamudApi.PluginInterface.GetIpcSubscriber<bool>("vnavmesh.SimpleMove.PathfindInProgress");
             _vnavPathRunning = DalamudApi.PluginInterface.GetIpcSubscriber<bool>("vnavmesh.Path.IsRunning");
             _vnavPathWaypoints = DalamudApi.PluginInterface.GetIpcSubscriber<List<Vector3>>("vnavmesh.Path.ListWaypoints");
+            _vnavMoveToOwned = DalamudApi.PluginInterface.GetIpcSubscriber<Vector3, bool, string, bool>("vnavmesh.SimpleMove.PathfindAndMoveToOwned");
+            _vnavStopIfOwner = DalamudApi.PluginInterface.GetIpcSubscriber<string, bool>("vnavmesh.Path.StopIfOwner");
+            _vnavRouting = new VnavOwnedRouting(
+                _vnavMoveToOwned.InvokeFunc,
+                _vnavMoveTo.InvokeFunc,
+                _vnavStopIfOwner.InvokeFunc,
+                IsVnavmeshLoaded,
+                static message => DalamudApi.Log.Information(message),
+                static () => Environment.TickCount64);
 
             _stopAllIpc = DalamudApi.PluginInterface.GetIpcProvider<string, object>(StopAllIpcName);
             _stopAllIpc.RegisterAction(RequestStopAll);
@@ -258,6 +272,15 @@ namespace EurekaHelper.System
         {
             try
             {
+                switch (_vnavRouting.StopOwn())
+                {
+                    case VnavOwnedRouting.StopKind.OwnedStopped:
+                        return $"已送 Path.StopIfOwner({VnavOwnedRouting.Owner})：停掉本插件第 {sequence} 次送的導航（別的插件的路不碰）";
+                    case VnavOwnedRouting.StopKind.OwnedNothing:
+                        return $"已送 Path.StopIfOwner({VnavOwnedRouting.Owner})：vnavmesh 上沒有本插件的導航（已走完或被別的路換掉），什麼都沒停";
+                }
+
+                // 舊端點或 /vnav moveflag 送的路沒有擁有者：算路中分不出是誰的，照原本的判斷。
                 var computing = _vnavMoveInProgress.InvokeFunc();
                 var running = _vnavPathRunning.InvokeFunc();
                 Vector3? pathEnd = null;
@@ -280,6 +303,18 @@ namespace EurekaHelper.System
             {
                 return $"停 vnavmesh 失敗（{ex.GetType().Name}：{ex.Message}）";
             }
+        }
+
+        // 只在新端點擲 IpcError 時讀：分辨「舊版 vnavmesh」與「根本沒載入」，決定要不要記那一行退回 log。
+        private static bool IsVnavmeshLoaded()
+        {
+            foreach (var plugin in DalamudApi.PluginInterface.InstalledPlugins)
+            {
+                if (plugin.InternalName == "vnavmesh" && plugin.IsLoaded)
+                    return true;
+            }
+
+            return false;
         }
 
         // IPC 端點，跑在呼叫端的執行緒：只讀快照與時鐘，不鎖、不轉派、不碰遊戲狀態。
@@ -975,7 +1010,7 @@ namespace EurekaHelper.System
                 if (TryVnavMoveTo(p, out var failure))
                 {
                     var sequence = _navTarget.Publish(p, true);
-                    DalamudApi.Log.Information($"[TreasureHuntManager] 送出 vnavmesh IPC SimpleMove.PathfindAndMoveTo：來源={source}；目的地=3D 候選點 {label} 世界 ({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0})，離旗標目標 {distance:0.0} 米；第 {sequence} 次自動走向");
+                    DalamudApi.Log.Information($"[TreasureHuntManager] 送出 vnavmesh IPC SimpleMove.{(_vnavRouting.LastSendLegacy ? "PathfindAndMoveTo" : "PathfindAndMoveToOwned")}：來源={source}；目的地=3D 候選點 {label} 世界 ({p.X:0.0}, {p.Y:0.0}, {p.Z:0.0})，離旗標目標 {distance:0.0} 米；第 {sequence} 次自動走向");
                     return;
                 }
 
@@ -991,6 +1026,7 @@ namespace EurekaHelper.System
             }
 
             var flatSequence = _navTarget.Publish(new Vector3(flagTarget.X, 0f, flagTarget.Y), false);
+            _vnavRouting.NoteUnownedSend();
             SendMoveFlag(source, $"{flatReason}；第 {flatSequence} 次自動走向");
         }
 
@@ -999,7 +1035,7 @@ namespace EurekaHelper.System
         {
             try
             {
-                if (_vnavMoveTo.InvokeFunc(destination, false))
+                if (_vnavRouting.PathfindAndMoveTo(destination, false))
                 {
                     failure = null;
                     return true;
@@ -1047,6 +1083,7 @@ namespace EurekaHelper.System
                 }
             }
 
+            _vnavRouting.NoteUnownedSend();
             SendMoveFlag(source);
         }
 
