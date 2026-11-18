@@ -421,7 +421,7 @@ namespace EurekaHelper.System
                 }
 
                 var json = File.ReadAllText(_seenMonstersPath);
-                _seenMonsters = JsonConvert.DeserializeObject<HashSet<string>>(json) ?? new();
+                _seenMonsters = SideFileBackup.NullAsUnreadable(JsonConvert.DeserializeObject<HashSet<string>>(json), _seenMonstersPath, "SplatoonManager") ?? new();
                 var renamed = MonsterNameKey.NormalizeNames(ref _seenMonsters);
                 if (renamed > 0)
                     DalamudApi.Log.Information($"[SplatoonManager] SeenMonsters.json 有 {renamed} 個怪物名是 7.25 前的舊中間點寫法，已改用新寫法比對");
@@ -720,7 +720,7 @@ namespace EurekaHelper.System
             try
             {
                 var json = File.ReadAllText(_configPath);
-                _aggroRanges = JsonConvert.DeserializeObject<Dictionary<string, List<AggroRangeConfig>>>(json) ?? new();
+                _aggroRanges = SideFileBackup.NullAsUnreadable(JsonConvert.DeserializeObject<Dictionary<string, List<AggroRangeConfig>>>(json), _configPath, "SplatoonManager") ?? new();
                 _aggroRanges.Remove("EXAMPLE - 沙巴頓仙人掌怪");
                 var (renamed, merged) = MonsterNameKey.NormalizeKeys(ref _aggroRanges);
                 if (renamed > 0)

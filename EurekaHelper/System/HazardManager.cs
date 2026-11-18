@@ -390,7 +390,7 @@ namespace EurekaHelper.System
                 }
 
                 var json = File.ReadAllText(_dataPath);
-                _data = JsonConvert.DeserializeObject<HazardData>(json) ?? new HazardData();
+                _data = SideFileBackup.NullAsUnreadable(JsonConvert.DeserializeObject<HazardData>(json), _dataPath, "HazardManager") ?? new HazardData();
             }
             catch (Exception ex)
             {

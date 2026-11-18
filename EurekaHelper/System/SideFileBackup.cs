@@ -37,5 +37,17 @@ namespace EurekaHelper.System
                 DalamudApi.Log.Warning($"[{owner}] 備份讀不懂的 {name} 失敗：{ex.Message}；之後存檔會以目前的資料覆蓋原檔");
             }
         }
+
+        // Newtonsoft 對空白／全 NUL 的內容回 null、不擲例外：仍算讀壞，先備份再原樣交回 null，呼叫端照舊改用空資料。
+        public static T NullAsUnreadable<T>(T parsed, string path, string owner) where T : class
+        {
+            if (parsed == null)
+            {
+                DalamudApi.Log.Warning($"[{owner}] {Path.GetFileName(path)} 內容是空的或無法辨識（解析結果是 null），改用空資料");
+                BackupUnreadable(path, owner);
+            }
+
+            return parsed;
+        }
     }
 }
