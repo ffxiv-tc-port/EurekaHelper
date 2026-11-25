@@ -12,9 +12,8 @@ description: Build and localize this Dalamud plugin (EurekaHelper) for the Tradi
 - The source is **fully migrated to modern `Dalamud.Bindings.ImGui`** — there is no `using ImGuiNET`
   left anywhere in the repo. `Utils.cs`, `Windows/PluginWindow.cs`, `Windows/AlarmWindow.cs`,
   `Windows/RelicWindow.cs` all use `Dalamud.Bindings.ImGui`.
-- `tc-7.15` is a **frozen API12 archive**. Don't commit to it.
-  (GitHub's `origin/HEAD` still points at `tc-7.15`, so a fresh clone lands on the old branch —
-  `git checkout tc-7.30` right after cloning.)
+- `tc-7.15` (the API12 era) is gone from the remote: `origin` only has `tc-7.30`, which is also the
+  default branch.
 
 > **歷史（已不適用）**：這份文件原本整篇的前提是「TC 的 Dalamud 落後 global 好幾個月，只有
 > 傳統的 `ImGui.NET.dll`/`ImGuiScene.dll`，所以要從 pre-migration 的舊 commit 開分支、
@@ -51,25 +50,27 @@ dotnet build EurekaHelper\EurekaHelper.csproj -c Release -p:DalamudLibPath="<pin
 
 （結尾那個反斜線要留著——csproj 的 `<HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>` 沒有自己補分隔符。）
 
-本機實測可用的 API13 Dalamud 有兩處：
+本機有兩份 API13 Dalamud：
 
 | 路徑 | 版本 | 用途 |
 | --- | --- | --- |
-| `%APPDATA%\xivlauncher\addon\Hooks\dev` | 13.0.0.6 | 跟 CI 釘的同版，要重現 CI 就用這個 |
-| `D:\ffxiv-tc-port\Dalamud\bin\Release` | 13.0.0.16 | TC 遊戲執行期實際載入的那份 |
+| `D:\ffxiv-tc-port\Dalamud\bin\Release` | 13.0.0.16 | 本機重建的那份，建置就指這裡；遊戲實際載入的是它部署出去的 `D:\ffxiv-tc-port\DalamudLive` |
+| `%APPDATA%\xivlauncher\addon\Hooks\dev` | 13.0.0.6 | 舊版，和 CI 現在釘的不同代，不要拿來重現 CI |
 
 **不要**去覆寫 `%APPDATA%\FFXIVSimpleLauncher\Dalamud\Injector`（CI 在自己的 runner 上覆寫沒差，
 本機那份跟實際遊戲載入有關）。
 
-## ⚠️ CI 釘 13.0.0.6，執行期是 13.0.0.16
+## ⚠️ CI 用釘住的 Dalamud，不一定等於本機那份
 
 `.github/workflows/{build-check,release}.yml` 都會下載
-`ffxiv-tc-port/DalamudPluginsTC` 的 release `dalamud-pin-v13.0.0.6/dalamud-api13-net9.zip`，
-解壓到 `%AppData%\FFXIVSimpleLauncher\Dalamud\Injector\` 之後才建置。
+`ffxiv-tc-port/Dalamud` 的 release `dalamud-pin-v7.30.0.1/dalamud-api13-net9.zip`
+（以 workflow 的 `$pinUrl` 為準，下載後驗 SHA256），解壓到 `$RUNNER_TEMP\dalamud-pinned\`，
+再用 `-p:DalamudLibPath` 指過去建置。
 
-所以**「本機編得過」不等於「CI 編得過」**。最具體的地雷是 `ClientLanguage.TraditionalChinese`(=7)
-這個列舉名，13.0.0.6 **沒有**（已用二進位字串驗證），要用就得寫數值 `is 4 or 5 or 7`，
-寫列舉名 CI 必炸。
+這顆 pin 的檔案版本是 13.0.0.16，和本機 `Dalamud\bin\Release` 同一代，但本機那份可能比它新。
+所以 **「本機編得過」不等於「CI 編得過」**：用到 pin 之後才加進 Dalamud 的 API 時，CI 會編不過。
+（更早的 pin 13.0.0.6 沒有 `ClientLanguage.TraditionalChinese`(=7) 這個列舉名，當時只能寫數值
+`is 4 or 5 or 7`；現在的 pin 已經有。）
 
 `release.yml` 只吃 `workflow_dispatch`，build 時用 `-p:Version=<tag> -p:AssemblyVersion=… -p:FileVersion=…`
 從 tag 覆蓋版本，然後把 `latest.zip` 改名成 `EurekaHelper.zip` 發佈。
@@ -134,8 +135,8 @@ System.Exception: Plugin DLL file at '...\EurekaHelper\bin\Release\EurekaHelper.
 另外別漏掉 `EurekaHelper/EurekaHelper.yaml`——它餵給 `DalamudPackager` 產生 manifest 的
 `name` / `punchline` / `description` / `tags`，跟 ImGui 視窗完全分開，很容易忘。
 
-> 觀察（未處理）：`EurekaHelper.yaml` 的 `icon_url` 目前還指向 **`tc-7.15`** 分支的 raw 路徑。
-> 舊分支還在所以圖示沒壞，但那是遷移前留下來的；若之後 archive/刪掉 `tc-7.15` 就會破圖。
+> `EurekaHelper.yaml` 的 `icon_url` 指向 feed repo（`DalamudPluginsTC` 的 `main/icons/EurekaHelper.png`），
+> 不跟本 repo 的分支名走。
 
 ## Auto-incrementing build number
 
@@ -162,7 +163,7 @@ System.Exception: Plugin DLL file at '...\EurekaHelper\bin\Release\EurekaHelper.
 `BuildNumber.txt` 要 commit（不要 gitignore），計數才會跨機器/clone 延續。但要知道：
 
 - **這個版本號跟實際發版無關**：`release.yml` 用 `-p:Version=<tag>` 從 git tag 覆蓋，
-  所以 `VersionPrefix` 至今還是 `7.15.0`、feed 上卻是 `v7.20.0.x`，**這不是漏改**，不要去動它。
+  所以 `VersionPrefix` 至今還是 `7.15.0`、feed 上卻是 `v7.30.0.x`，**這不是漏改**，不要去動它。
 - 每次 build 都會改到 `BuildNumber.txt`、**弄髒工作區**。它是建置副產物，
   直接 `git checkout -- EurekaHelper/BuildNumber.txt` 還原即可，小心 `git add -A`。
 - ⚠️ 工作區髒掉會讓 `release_plugin.py` 判定「有未提交變更」而**直接跳過這個外掛不發版**。
