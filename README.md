@@ -16,7 +16,7 @@
 
 ## 主視窗分頁
 
-- **追蹤器**：加入或建立社群追蹤器，依區域分頁顯示各 NM 出現狀態，介面仿照官方網站；換到同區另一個副本時只有開了「自動建立追蹤器」（預設關）才會自動建新的
+- **追蹤器**：加入或建立社群追蹤器，依區域分頁顯示各 NM 出現狀態，介面仿照官方網站；換到同區另一個副本時只有開了「自動建立追蹤器」（預設關）才會自動建新的。連上追蹤器後，也會讀取另一個社群追蹤器（CooKieBox）回報的 NM 觸發時間，一起顯示在表上
 - **兵武塔 BA**：兵武塔專用簡化面板，追蹤未確認飛行物體／傷悲光靈魟戰況與塔內狀態
 - **聖靈**：記錄已知聖靈在各區域的出現位置
 - **變異怪物**：追蹤恆冰之地／湧火之地／豐水之地的環境適應、突然變異怪物天氣時段，並可用 Splatoon 在怪物身上標示
@@ -34,26 +34,34 @@
 - 新增新月島魔法甕尋寶：依提示篩出已知財寶點、Mappy 地圖標示、自動走向旗標；尋寶進行中與走向的目的地都以 IPC 提供給 BOCCHI（讓它先等尋寶走完、走路時繞開魔物）。
 - 新增兵武塔分頁、幸運胡蘿蔔尋寶、變異怪物追蹤、隱藏危險標示、NM 仇恨範圍（Splatoon）。
 - 追蹤器依區域分頁，連線在插件重啟後保留；即時串流斷線會自動重連。
-- 自動上傳到 ffxiv-eureka.com 的動作全部預設關閉（含「自動標記 FATE 觸發」與自動建立追蹤器）。
+- 讀取另一個社群追蹤器（CooKieBox）的 NM 觸發時間：只讀取，而且至少有一區連著追蹤器時才連線。
+- 自動上傳到 ffxiv-eureka.com 的動作全部預設關閉（含「自動標記 FATE 觸發」與自動建立追蹤器）；「轉送社群回報的觸發時間」是獨立開關，你沒改過時跟著「自動標記 FATE 觸發」。
+- 尋寶只認你自己的尋寶訊息，其他玩家在聊天頻道打出類似句子不會被當成提示；按清除或卸載時只停本插件送出的導航。
+- 仇恨範圍、看過的怪物、危險標記的資料檔改成先寫暫存檔再換名；讀不懂時先備份原檔，不會整份消失。
 - 追蹤器連線出錯不再讓遊戲結束。
 - 遊戲改版後進區偵測的特徵碼對不上時，只停用伺服器 ID 顯示與進區自動開追蹤器，插件照常載入。
 - 多處降低記憶體用量。
 - 介面繁體中文化（用台服官方名稱）。
 
+## 安裝
+
+1. 在遊戲內輸入 `/xlsettings` 開啟「Dalamud 設定」，到「試驗性功能」分頁的「第三方插件倉庫」加入
+   `https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json`
+   並啟用、儲存。
+2. 輸入 `/xlplugins` 開啟「插件管理員」，搜尋「Eureka Helper」安裝。
+
+同一個插件只裝這裡的版本，不要同時裝上游版。
+
 ## 需要搭配的插件
 
-- 選用：Splatoon（畫面標示）、vnavmesh（自動走向旗標）、Mappy（新月島財寶點畫在地圖上）、BOCCHI（會讀取尋寶狀態）
+- 選用：[Splatoon](https://github.com/ffxiv-tc-port/Splatoon)（畫面標示）、[vnavmesh](https://github.com/ffxiv-tc-port/vnavmesh)（自動走向旗標）、[Mappy](https://github.com/ffxiv-tc-port/Mappy)（新月島財寶點畫在地圖上）、[BOCCHI](https://github.com/ffxiv-tc-port/BOCCHI)（會讀取尋寶狀態）
 
 ## 已知問題
 
-「互動選項」設定為「喊話到聊天」且同時安裝 Chat 2 時，點擊聊天中的訊息連結會導致遊戲當機。
-
-## 安裝
-
-在 Dalamud 設定的「自訂插件庫」加入
-`https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json`
-並啟用，再從插件列表安裝。
+「互動選項」設定為「喊話到聊天」且同時安裝 [Chat 2](https://github.com/ffxiv-tc-port/ChatTwo) 時，點擊聊天中的訊息連結會導致遊戲當機。
 
 ## 致謝
 
 本插件為既有 Eureka Helper 插件的延續維護版本，原作者為 Snowy，現由 [KangasZ](https://github.com/KangasZ/EurekaHelper) 維護。
+
+授權：Apache-2.0（見 LICENSE）
